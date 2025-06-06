@@ -186,5 +186,7 @@ export const getEmailContent = onRequest(
   }
 );
 
-// Export simple test function
-export {helloWorld} from "./simple-test";
+// Export server screenshot functions
+export {generateServerScreenshot} from "./server-screenshot";
+export {generateReliableServerScreenshot, generateClientSideScreenshotData} from "./server-screenshot-reliable";
+export {getEnhancedEmailContent} from "./enhanced-email";

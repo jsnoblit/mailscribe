@@ -8,7 +8,9 @@
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "postinstall": "npx puppeteer browsers install chrome",
+    "puppeteer:install": "npx puppeteer browsers install chrome --path ./browsers"
   },
   "engines": {
     "node": "20"
@@ -21,7 +23,8 @@
     "googleapis": "^144.0.0",
     "html2canvas": "^1.4.1",
     "jszip": "^3.10.1",
-    "puppeteer": "^22.0.0"
+    "puppeteer": "^22.0.0",
+    "puppeteer-core": "^22.0.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
