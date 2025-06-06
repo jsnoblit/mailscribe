@@ -4,6 +4,16 @@ export interface Email {
   subject: string;
   date: string; // ISO date string
   bodyHtml?: string; // Full HTML content of the email
+  from?: string; // Alias for sender (Gmail API compatibility)
+  snippet?: string; // Email preview text
+  brand?: string; // Extracted brand name
+}
+
+// Gmail API compatible interface
+export interface EmailMessage extends Email {
+  from: string;
+  snippet: string;
+  htmlContent?: string;
 }
 
 export interface SearchCriteria {
@@ -11,6 +21,37 @@ export interface SearchCriteria {
   subject: string; // Keywords or "All"
   startDate?: Date;
   endDate?: Date;
+  maxResults?: number;
+}
+
+// Gmail service interfaces
+export interface SearchFilters {
+  brand: string;
+  subject: string;
+  startDate?: Date;
+  endDate?: Date;
+  maxResults?: number;
+}
+
+export interface ScreenshotOptions {
+  filename?: string;
+  quality?: number;
+  scale?: number;
+}
+
+export interface BatchScreenshotResult {
+  success: string[];
+  failed: string[];
+}
+
+export interface GmailSearchResponse {
+  messages: EmailMessage[];
+  totalResults: number;
+}
+
+export interface EmailContentResponse {
+  htmlContent: string;
+  messageId: string;
 }
 
 export interface GeneratedScreenshot {
