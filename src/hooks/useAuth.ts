@@ -56,10 +56,17 @@ export const useAuthState = () => {
             firebaseTokenPreview: token?.substring(0, 50) + '...',
           });
 
+          // Check for persisted Gmail access token
+          const persistedGmailToken = sessionStorage.getItem('gmailAccessToken');
+          if (persistedGmailToken) {
+            console.log('✅ Found persisted Gmail token in sessionStorage');
+          }
+
           // Use functional update to merge states
           setUser(currentUser => ({
             ...(currentUser || {}), // Keep existing gmailAccessToken
-            ...newAuthData
+            ...newAuthData,
+            gmailAccessToken: currentUser?.gmailAccessToken || persistedGmailToken || undefined,
           } as AuthUser));
           setLoading(false);
         }).catch((err) => {
@@ -88,6 +95,11 @@ export const useAuthState = () => {
       const gmailAccessToken = credential?.accessToken; // This is the Gmail OAuth token
       
       if (result.user) {
+        if (gmailAccessToken) {
+          sessionStorage.setItem('gmailAccessToken', gmailAccessToken);
+          console.log('✅ Stored Gmail access token in sessionStorage');
+        }
+
         const authUser: AuthUser = {
           ...result.user,
           accessToken: undefined, // Will be set by onAuthStateChanged
@@ -133,6 +145,8 @@ export const useAuthState = () => {
       setError(null);
       await signOut(auth);
       setUser(null);
+      sessionStorage.removeItem('gmailAccessToken');
+      console.log('🗑️ Cleared Gmail access token from sessionStorage');
     } catch (err: any) {
       console.error('Sign out error:', err);
       setError('Failed to sign out');

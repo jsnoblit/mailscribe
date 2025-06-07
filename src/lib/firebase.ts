@@ -1,37 +1,17 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
-// Hardcoded Firebase configuration as fallback
-const FALLBACK_CONFIG = {
-  apiKey: "AIzaSyChP-o61yEOaJ4ysbUcRQwaLZB0whTK77Y",
-  authDomain: "mailscribe-ae722.firebaseapp.com", 
-  projectId: "mailscribe-ae722",
-  storageBucket: "mailscribe-ae722.firebasestorage.app",
-  messagingSenderId: "300010916290",
-  appId: "1:300010916290:web:b32850cb6950b69ba9ae5b"
-};
-
-// Try to get from environment variables first, fallback to hardcoded
+// Read Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || FALLBACK_CONFIG.apiKey,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || FALLBACK_CONFIG.authDomain,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || FALLBACK_CONFIG.projectId,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || FALLBACK_CONFIG.storageBucket,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || FALLBACK_CONFIG.messagingSenderId,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || FALLBACK_CONFIG.appId,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
 // Debug logging
-const envSource = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'env' : 'fallback',
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? 'env' : 'fallback',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? 'env' : 'fallback',
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? 'env' : 'fallback',
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ? 'env' : 'fallback',
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ? 'env' : 'fallback',
-};
-
-console.log('🔧 Firebase Config Source Check:', envSource);
 console.log('🔑 Using config:', {
   projectId: firebaseConfig.projectId,
   authDomain: firebaseConfig.authDomain,
@@ -41,9 +21,14 @@ console.log('🔑 Using config:', {
 
 // Validate we have valid configuration
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  console.error('❌ Firebase configuration is incomplete!');
-  console.error('Current config:', firebaseConfig);
-  throw new Error('Firebase configuration is incomplete');
+  console.error('❌ Firebase configuration is incomplete! Check your .env.local file.');
+  console.error('Current config:', {
+    projectId: firebaseConfig.projectId,
+    authDomain: firebaseConfig.authDomain,
+    hasApiKey: !!firebaseConfig.apiKey,
+    hasAppId: !!firebaseConfig.appId,
+  });
+  throw new Error('Firebase configuration is incomplete. Make sure environment variables are set.');
 }
 
 // Initialize Firebase
@@ -81,7 +66,6 @@ export const getFirebaseConfig = () => {
     // Don't expose sensitive keys in logs
     hasApiKey: !!firebaseConfig.apiKey,
     hasAppId: !!firebaseConfig.appId,
-    configSource: envSource,
   };
 };
 

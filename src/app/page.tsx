@@ -29,7 +29,7 @@ export default function MailScribePage() {
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   
   // Advanced screenshot options
-  const [screenshotMode, setScreenshotMode] = useState<'layout-preserving' | 'enhanced-server'>('layout-preserving');
+  const [screenshotMode, setScreenshotMode] = useState<'layout-preserving' | 'enhanced-server'>('enhanced-server');
   const [downloadFormat, setDownloadFormat] = useState<'individual-png' | 'zip'>('individual-png');
   const [isProcessingScreenshots, setIsProcessingScreenshots] = useState(false);
   const [screenshotProgress, setScreenshotProgress] = useState(0);
@@ -515,20 +515,6 @@ export default function MailScribePage() {
                             <div className="flex items-center space-x-2">
                               <input
                                 type="radio"
-                                id="layout-preserving"
-                                name="screenshot-mode"
-                                value="layout-preserving"
-                                checked={screenshotMode === 'layout-preserving'}
-                                onChange={() => setScreenshotMode('layout-preserving')}
-                                className="w-4 h-4"
-                              />
-                              <Label htmlFor="layout-preserving" className="text-sm font-semibold text-purple-600 cursor-pointer">
-                                Layout Preserving - Client side rendering
-                              </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="radio"
                                 id="enhanced-server"
                                 name="screenshot-mode"
                                 value="enhanced-server"
@@ -538,6 +524,20 @@ export default function MailScribePage() {
                               />
                               <Label htmlFor="enhanced-server" className="text-sm font-semibold text-blue-600 cursor-pointer">
                                 Enhanced Client - Server side with Puppeteer
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="radio"
+                                id="layout-preserving"
+                                name="screenshot-mode"
+                                value="layout-preserving"
+                                checked={screenshotMode === 'layout-preserving'}
+                                onChange={() => setScreenshotMode('layout-preserving')}
+                                className="w-4 h-4"
+                              />
+                              <Label htmlFor="layout-preserving" className="text-sm font-semibold text-purple-600 cursor-pointer">
+                                Layout Preserving - Client side rendering
                               </Label>
                             </div>
                           </div>
@@ -626,12 +626,6 @@ export default function MailScribePage() {
                         )}
                       </CardContent>
                     </Card>
-
-                    {/* Advanced Screenshot Actions Component */}
-                    <ScreenshotActions
-                      selectedEmails={selectedEmailObjects}
-                      accessToken={user.gmailAccessToken || ''}
-                    />
                   </div>
                 )}
               </TabsContent>
