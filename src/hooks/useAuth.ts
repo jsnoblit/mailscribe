@@ -12,7 +12,7 @@ import { auth, googleProvider } from '@/lib/firebase';
 
 export interface AuthUser extends User {
   accessToken?: string;
-  refreshToken?: string;
+  refreshToken: string;
   gmailAccessToken?: string; // Add Gmail-specific access token
 }
 
@@ -45,16 +45,22 @@ export const useAuthState = () => {
       if (firebaseUser) {
         // Get the access token for Gmail API calls
         firebaseUser.getIdToken().then((token) => {
-          const authUser: AuthUser = {
+          const newAuthData = {
             ...firebaseUser,
             accessToken: token,
           };
+          
           console.log('🔍 Firebase Auth Token Debug:', {
             hasFirebaseToken: !!token,
             firebaseTokenLength: token?.length,
             firebaseTokenPreview: token?.substring(0, 50) + '...',
           });
-          setUser(authUser);
+
+          // Use functional update to merge states
+          setUser(currentUser => ({
+            ...(currentUser || {}), // Keep existing gmailAccessToken
+            ...newAuthData
+          } as AuthUser));
           setLoading(false);
         }).catch((err) => {
           console.error('Error getting ID token:', err);
@@ -84,7 +90,7 @@ export const useAuthState = () => {
       if (result.user) {
         const authUser: AuthUser = {
           ...result.user,
-          accessToken: undefined, // We'll get this separately
+          accessToken: undefined, // Will be set by onAuthStateChanged
           gmailAccessToken: gmailAccessToken || undefined, // Store Gmail token
         };
         console.log('🔍 OAuth Token Debug:', {

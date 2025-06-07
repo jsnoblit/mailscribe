@@ -86,34 +86,46 @@ export const generateReliableServerScreenshot = onRequest(
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <style>
               body {
-                font-family: Arial, sans-serif;
-                line-height: 1.4;
-                margin: 20px;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+                line-height: 1.5;
+                margin: 0;
                 background: white;
-                max-width: 1160px;
                 word-wrap: break-word;
               }
+              .email-container {
+                padding: 20px;
+                max-width: 1200px;
+                margin: 0 auto;
+              }
               img {
-                max-width: 100%;
-                height: auto;
-                display: block;
+                max-width: 100% !important;
+                height: auto !important;
+                vertical-align: middle;
               }
               table { 
                 border-collapse: collapse; 
                 max-width: 100%;
+                border-spacing: 0;
               }
-              .email-content { 
-                max-width: 100%; 
-                overflow-wrap: break-word;
+              td, th {
+                vertical-align: top;
+                padding: 4px 8px;
               }
-              /* Prevent content from being too wide */
-              * {
-                max-width: 100%;
+              /* Center content in button-like links */
+              a[href*="View"], a[href*="Manage"], a[role="button"], .button {
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                text-align: center !important;
+              }
+              /* Better alignment for icons/text */
+              td > img + span, td > span + img {
+                 vertical-align: middle;
               }
             </style>
           </head>
           <body>
-            <div class="email-content">
+            <div class="email-container">
               ${htmlContent}
             </div>
           </body>
@@ -219,33 +231,46 @@ export const generateClientSideScreenshotData = onRequest(
                   <meta name="viewport" content="width=device-width, initial-scale=1">
                   <style>
                     body {
-                      font-family: Arial, sans-serif;
-                      line-height: 1.4;
-                      margin: 20px;
+                      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+                      line-height: 1.5;
+                      margin: 0;
                       background: white;
-                      max-width: 1160px;
                       word-wrap: break-word;
                     }
+                    .email-container {
+                      padding: 20px;
+                      max-width: 1200px;
+                      margin: 0 auto;
+                    }
                     img {
-                      max-width: 100%;
-                      height: auto;
-                      display: block;
+                      max-width: 100% !important;
+                      height: auto !important;
+                      vertical-align: middle;
                     }
                     table { 
                       border-collapse: collapse; 
                       max-width: 100%;
+                      border-spacing: 0;
                     }
-                    .email-content { 
-                      max-width: 100%; 
-                      overflow-wrap: break-word;
+                    td, th {
+                      vertical-align: top;
+                      padding: 4px 8px;
                     }
-                    * {
-                      max-width: 100%;
+                    /* Center content in button-like links */
+                    a[href*="View"], a[href*="Manage"], a[role="button"], .button {
+                      display: inline-flex !important;
+                      align-items: center !important;
+                      justify-content: center !important;
+                      text-align: center !important;
+                    }
+                    /* Better alignment for icons/text */
+                    td > img + span, td > span + img {
+                       vertical-align: middle;
                     }
                   </style>
                 </head>
                 <body>
-                  <div class="email-content">
+                  <div class="email-container">
                     ${htmlContent}
                   </div>
                 </body>
