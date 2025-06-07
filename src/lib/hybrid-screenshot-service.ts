@@ -1,5 +1,5 @@
 import { EmailMessage } from '@/types';
-import { preprocessHtmlForScreenshot } from './image-utils';
+import { preprocessHtmlForScreenshotWithImages, preprocessHtmlWithImageHandling } from './enhanced-image-utils';
 
 interface HybridScreenshotResult {
   success: string[];
@@ -17,8 +17,8 @@ export class HybridScreenshotService {
     email: EmailMessage,
     accessToken: string
   ): Promise<{ success: boolean; screenshot?: string; filename?: string; error?: string }> {
+    // For now, skip server methods and focus on reliable client-side processing
     const methods = [
-      () => this.tryReliableServerScreenshot(email, accessToken),
       () => this.tryEnhancedClientScreenshot(email, accessToken),
       () => this.tryBasicClientScreenshot(email),
     ];
@@ -69,8 +69,21 @@ export class HybridScreenshotService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(`Server screenshot failed: ${response.status} - ${errorData.error || 'Unknown error'}`);
+        const errorText = await response.text();
+        console.error('Server screenshot API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errorText
+        });
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText || 'Unknown error' };
+        }
+        
+        throw new Error(`Server screenshot failed: ${response.status} - ${errorData.error || errorText || 'Unknown error'}`);
       }
 
       const data = await response.json();
@@ -163,7 +176,7 @@ export class HybridScreenshotService {
    * Convert HTML content to screenshot using html2canvas
    */
   private static async htmlToScreenshot(htmlContent: string): Promise<string> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       // Create a temporary iframe to render the email
       const iframe = document.createElement('iframe');
       iframe.style.position = 'absolute';
@@ -181,28 +194,58 @@ export class HybridScreenshotService {
             throw new Error('Could not access iframe document');
           }
 
-          // Preprocess HTML to handle problematic images
-          const processedHtml = preprocessHtmlForScreenshot(htmlContent);
+          // Enhanced preprocessing to handle images properly
+          let processedHtml;
+          try {
+            // Try the advanced image handling first
+            processedHtml = await preprocessHtmlWithImageHandling(htmlContent);
+            console.log('Used advanced image processing');
+          } catch (error) {
+            console.warn('Advanced image processing failed, using simple method:', error);
+            // Fallback to simpler image optimization
+            processedHtml = preprocessHtmlForScreenshotWithImages(htmlContent);
+          }
           
           // Write the processed HTML content
           iframeDoc.open();
           iframeDoc.write(processedHtml);
           iframeDoc.close();
 
-          // Wait a bit for content to render
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Wait for all content to load and settle
+          console.log('Waiting for content to load and stabilize...');
+          await new Promise(resolve => setTimeout(resolve, 4000));
+          
+          // Make sure all async operations are complete before screenshot
+          console.log('Starting screenshot capture...');
 
           // Dynamically import html2canvas
           const html2canvas = (await import('html2canvas')).default;
           
-          // Capture screenshot with simplified settings
+          // Capture screenshot with stable, safe settings
           const canvas = await html2canvas(iframeDoc.body, {
-            allowTaint: false,
-            useCORS: false,
+            allowTaint: true,
+            useCORS: false, // Disable CORS to avoid conflicts
             scale: 1.5,
             width: 1200,
             height: Math.max(800, iframeDoc.body.scrollHeight),
             logging: false,
+            // Shorter timeout to avoid conflicts
+            imageTimeout: 2000,
+            removeContainer: true,
+            backgroundColor: '#ffffff',
+            // Ignore problematic elements that cause parsing errors
+            ignoreElements: (element) => {
+              // Skip elements that commonly cause CSS parsing issues
+              if (element.tagName === 'SCRIPT' || element.tagName === 'STYLE') {
+                return true;
+              }
+              // Skip elements with complex CSS that might cause parsing errors
+              const style = getComputedStyle(element);
+              if (style.position === 'fixed' || style.position === 'sticky') {
+                return true;
+              }
+              return false;
+            }
           });
 
           // Convert to base64
@@ -211,6 +254,7 @@ export class HybridScreenshotService {
           // Clean up
           document.body.removeChild(iframe);
           
+          console.log('Screenshot captured successfully');
           resolve(screenshot);
         } catch (error) {
           document.body.removeChild(iframe);

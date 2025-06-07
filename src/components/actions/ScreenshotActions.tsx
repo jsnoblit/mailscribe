@@ -12,6 +12,9 @@ import { GmailService } from '@/lib/gmail-service';
 import { EmailScreenshotService } from '@/lib/screenshot-service';
 import { ServerScreenshotService } from '@/lib/server-screenshot-service';
 import { HybridScreenshotService } from '@/lib/hybrid-screenshot-service';
+import { BalancedScreenshotService } from '@/lib/balanced-screenshot-service';
+import { LayoutPreservingScreenshotService } from '@/lib/layout-preserving-screenshot-service';
+import { UltraStableScreenshotService } from '@/lib/ultra-stable-screenshot-service';
 
 interface ScreenshotActionsProps {
   selectedEmails: EmailMessage[];
@@ -24,64 +27,137 @@ const ScreenshotActions: React.FC<ScreenshotActionsProps> = ({
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [screenshotMode, setScreenshotMode] = useState<'hybrid' | 'server' | 'client'>('hybrid');
+  const [screenshotMode, setScreenshotMode] = useState<'layout-preserving' | 'balanced-client' | 'stable-client' | 'enhanced-client'>('layout-preserving');
   const [currentStep, setCurrentStep] = useState('');
   const { toast } = useToast();
 
   const handleSingleScreenshot = async (email: EmailMessage) => {
-    if (!email.htmlContent && screenshotMode === 'client') {
-      toast({
-        title: "Error",
-        description: "Email content not loaded. Please try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setIsProcessing(true);
+      setCurrentStep(`Loading content for: ${email.subject}`);
+      
+      // Check if we need to load email content
+      let emailWithContent = email;
+      if (!email.htmlContent) {
+        console.log('🔍 Loading email content for:', email.id);
+        
+        // Load the email content using Gmail service with direct API call (like integrated page)
+        const response = await fetch('/api/gmail/content', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            accessToken,
+            messageId: email.id,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load email content: ${response.statusText}`);
+        }
+
+        const contentData = await response.json();
+        emailWithContent = {
+          ...email,
+          htmlContent: contentData.htmlContent,
+        };
+        console.log('📧 Email content loaded successfully!');
+        console.log('📊 Content length:', contentData.htmlContent.length);
+        console.log('📄 Content preview:', contentData.htmlContent.substring(0, 200));
+      } else {
+        console.log('📧 Using existing email content, length:', email.htmlContent.length);
+      }
+      
+      if (!emailWithContent.htmlContent) {
+        toast({
+          title: "Error",
+          description: "Could not load email content. Please check your access token.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       setCurrentStep(`Taking screenshot of: ${email.subject}`);
       
-      if (screenshotMode === 'hybrid') {
-        const result = await HybridScreenshotService.generateScreenshotWithFallback(email, accessToken);
-        if (result.success && result.screenshot && result.filename) {
-          // Create download link and click it
-          const response = await fetch(result.screenshot);
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = result.filename;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          toast({
-            title: "Success",
-            description: `Screenshot saved: ${result.filename}`,
-          });
-        } else {
-          throw new Error(result.error || 'Screenshot failed');
-        }
-      } else {
-        const filename = `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_')}_${email.id}.png`;
-        
-        await EmailScreenshotService.captureEmailScreenshot(
-          email.htmlContent,
-          email.id,
-          { filename }
+      if (screenshotMode === 'layout-preserving') {
+        const screenshot = await LayoutPreservingScreenshotService.captureLayoutPreservingScreenshot(
+          emailWithContent.htmlContent,
+          `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`
         );
-
+        
+        // Download the screenshot
+        const response = await fetch(screenshot);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
         toast({
           title: "Success",
-          description: `Screenshot saved: ${filename}`,
+          description: "Layout-preserving screenshot saved successfully!",
+        });
+      } else if (screenshotMode === 'balanced-client') {
+        const screenshot = await BalancedScreenshotService.captureBalancedScreenshot(
+          emailWithContent.htmlContent,
+          `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`
+        );
+        
+        // Download the screenshot
+        const response = await fetch(screenshot);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Success",
+          description: "Balanced screenshot saved successfully!",
+        });
+      } else if (screenshotMode === 'stable-client') {
+        const screenshot = await UltraStableScreenshotService.captureUltraStableScreenshot(
+          emailWithContent.htmlContent,
+          `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`
+        );
+        
+        // Download the screenshot
+        const response = await fetch(screenshot);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Success",
+          description: "Ultra-stable screenshot saved successfully!",
+        });
+      } else {
+        // Handle other modes...
+        toast({
+          title: "Info",
+          description: "Other screenshot modes coming soon!",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Screenshot error:', error);
       toast({
         title: "Error",
-        description: "Failed to take screenshot. Please try again.",
+        description: `Failed to take screenshot: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -90,209 +166,30 @@ const ScreenshotActions: React.FC<ScreenshotActionsProps> = ({
     }
   };
 
-  const handleBatchScreenshots = async () => {
-    if (selectedEmails.length === 0) {
-      toast({
-        title: "No emails selected",
-        description: "Please select at least one email to screenshot.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsProcessing(true);
-      setProgress(0);
-      
-      if (screenshotMode === 'hybrid') {
-        setCurrentStep('Using hybrid screenshot method...');
-        
-        const result = await HybridScreenshotService.batchHybridScreenshots(
-          selectedEmails,
-          accessToken,
-          (progress, step) => {
-            setProgress(progress);
-            setCurrentStep(step);
-          }
-        );
-        
-        setCurrentStep('Complete!');
-
-        toast({
-          title: "Screenshots Complete",
-          description: `Successfully captured ${result.success.length} screenshots. ${result.failed.length} failed.`,
-          variant: result.failed.length === 0 ? "default" : "destructive",
-        });
-
-        if (result.warnings.length > 0) {
-          console.warn('Screenshot warnings:', result.warnings);
-        }
-      } else if (screenshotMode === 'server') {
-        setCurrentStep('Generating server-side screenshots...');
-        
-        const result = await ServerScreenshotService.batchServerScreenshots(
-          selectedEmails,
-          accessToken
-        );
-        
-        setProgress(100);
-        setCurrentStep('Complete!');
-
-        toast({
-          title: "Screenshots Complete",
-          description: `Successfully captured ${result.success.length} screenshots. ${result.failed.length} failed.`,
-        });
-
-        if (result.failed.length > 0) {
-          console.warn('Failed screenshots:', result.failed);
-        }
-      } else { // client mode
-        setCurrentStep('Loading email content...');
-
-        const emailsNeedingContent = selectedEmails.filter(email => !email.htmlContent);
-        const emailsWithContent = selectedEmails.filter(email => email.htmlContent);
-
-        let allEmailsWithContent = [...emailsWithContent];
-
-        if (emailsNeedingContent.length > 0) {
-          setCurrentStep(`Loading content for ${emailsNeedingContent.length} emails...`);
-          const loadedEmails = await GmailService.getBatchEmailContent(
-            accessToken,
-            emailsNeedingContent
-          );
-          allEmailsWithContent = [...allEmailsWithContent, ...loadedEmails];
-        }
-
-        setProgress(30);
-        setCurrentStep('Generating screenshots...');
-
-        const result = await EmailScreenshotService.batchCaptureScreenshots(allEmailsWithContent);
-        
-        setProgress(100);
-        setCurrentStep('Complete!');
-
-        toast({
-          title: "Screenshots Complete",
-          description: `Successfully captured ${result.success.length} screenshots. ${result.failed.length} failed.`,
-        });
-
-        if (result.failed.length > 0) {
-          console.warn('Failed screenshots:', result.failed);
-        }
-      }
-    } catch (error) {
-      console.error('Batch screenshot error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to complete batch screenshots. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-      setProgress(0);
-      setCurrentStep('');
-    }
-  };
-
-  const handleBatchZip = async () => {
-    if (selectedEmails.length === 0) {
-      toast({
-        title: "No emails selected",
-        description: "Please select at least one email to screenshot.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsProcessing(true);
-      setProgress(0);
-      
-      const zipFilename = `mailscribe_${screenshotMode}_${new Date().toISOString().split('T')[0]}.zip`;
-      
-      if (screenshotMode === 'hybrid') {
-        setCurrentStep('Creating ZIP with hybrid screenshots...');
-
-        await HybridScreenshotService.createHybridScreenshotZip(
-          selectedEmails,
-          accessToken,
-          zipFilename,
-          (progress, step) => {
-            setProgress(progress);
-            setCurrentStep(step);
-          }
-        );
-        
-        toast({
-          title: "ZIP Download Complete",
-          description: `Downloaded ${zipFilename}`,
-        });
-      } else if (screenshotMode === 'server') {
-        setCurrentStep('Creating ZIP with server screenshots...');
-
-        await ServerScreenshotService.createServerScreenshotZip(
-          selectedEmails,
-          accessToken,
-          zipFilename
-        );
-        
-        setProgress(100);
-        setCurrentStep('Complete!');
-
-        toast({
-          title: "ZIP Download Complete",
-          description: `Downloaded ${zipFilename} with ${selectedEmails.length} screenshots.`,
-        });
-      } else { // client mode
-        setCurrentStep('Loading email content...');
-
-        const emailsNeedingContent = selectedEmails.filter(email => !email.htmlContent);
-        const emailsWithContent = selectedEmails.filter(email => email.htmlContent);
-
-        let allEmailsWithContent = [...emailsWithContent];
-
-        if (emailsNeedingContent.length > 0) {
-          setCurrentStep(`Loading content for ${emailsNeedingContent.length} emails...`);
-          const loadedEmails = await GmailService.getBatchEmailContent(
-            accessToken,
-            emailsNeedingContent
-          );
-          allEmailsWithContent = [...allEmailsWithContent, ...loadedEmails];
-        }
-
-        setProgress(30);
-        setCurrentStep('Creating ZIP with screenshots...');
-
-        await EmailScreenshotService.createScreenshotZip(allEmailsWithContent, zipFilename);
-        
-        setProgress(100);
-        setCurrentStep('Complete!');
-
-        toast({
-          title: "ZIP Download Complete",
-          description: `Downloaded ${zipFilename} with ${allEmailsWithContent.length} screenshots.`,
-        });
-      }
-    } catch (error) {
-      console.error('ZIP creation error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create ZIP file. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-      setProgress(0);
-      setCurrentStep('');
-    }
-  };
+  if (!accessToken) {
+    return (
+      <Card className="mt-6 shadow-lg">
+        <CardHeader>
+          <CardTitle className="font-headline text-xl flex items-center">
+            <Camera className="mr-2 h-5 w-5 text-primary" />
+            Advanced Screenshot Actions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Access token required for advanced screenshot features.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="mt-6 shadow-lg">
       <CardHeader>
         <CardTitle className="font-headline text-xl flex items-center">
           <Camera className="mr-2 h-5 w-5 text-primary" />
-          Screenshot Actions
+          Advanced Screenshot Actions
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -303,47 +200,61 @@ const ScreenshotActions: React.FC<ScreenshotActionsProps> = ({
               <div className="flex items-center space-x-2">
                 <input
                   type="radio"
-                  id="hybrid-mode"
-                  name="screenshot-mode"
-                  checked={screenshotMode === 'hybrid'}
-                  onChange={() => setScreenshotMode('hybrid')}
+                  id="layout-preserving-mode-advanced"
+                  name="screenshot-mode-advanced"
+                  checked={screenshotMode === 'layout-preserving'}
+                  onChange={() => setScreenshotMode('layout-preserving')}
                   className="w-4 h-4"
                 />
-                <Label htmlFor="hybrid-mode" className="text-sm">
-                  🔄 Hybrid (Recommended) - Tries multiple methods automatically
+                <Label htmlFor="layout-preserving-mode-advanced" className="text-sm font-semibold text-purple-600">
+                  🏢 Layout-Preserving (Best) - Maintains original email layout exactly
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <input
                   type="radio"
-                  id="server-mode"
-                  name="screenshot-mode"
-                  checked={screenshotMode === 'server'}
-                  onChange={() => setScreenshotMode('server')}
+                  id="balanced-client-mode-advanced"
+                  name="screenshot-mode-advanced"
+                  checked={screenshotMode === 'balanced-client'}
+                  onChange={() => setScreenshotMode('balanced-client')}
                   className="w-4 h-4"
                 />
-                <Label htmlFor="server-mode" className="text-sm">
-                  🖥️ Server-side - Puppeteer on Firebase (may have Chrome issues)
+                <Label htmlFor="balanced-client-mode-advanced" className="text-sm text-blue-600">
+                  ⚖️ Balanced Client - Preserves structure, avoids errors
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <input
                   type="radio"
-                  id="client-mode"
-                  name="screenshot-mode"
-                  checked={screenshotMode === 'client'}
-                  onChange={() => setScreenshotMode('client')}
+                  id="stable-client-mode-advanced"
+                  name="screenshot-mode-advanced"
+                  checked={screenshotMode === 'stable-client'}
+                  onChange={() => setScreenshotMode('stable-client')}
                   className="w-4 h-4"
                 />
-                <Label htmlFor="client-mode" className="text-sm">
-                  🌐 Client-side - Enhanced HTML rendering in browser
+                <Label htmlFor="stable-client-mode-advanced" className="text-sm text-green-600">
+                  ✨ Ultra-Stable Client - Zero errors, minimal structure
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="enhanced-client-mode-advanced"
+                  name="screenshot-mode-advanced"
+                  checked={screenshotMode === 'enhanced-client'}
+                  onChange={() => setScreenshotMode('enhanced-client')}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="enhanced-client-mode-advanced" className="text-sm">
+                  🎯 Enhanced Client - Advanced image handling (may have conflicts)
                 </Label>
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              {screenshotMode === 'hybrid' && 'Automatically tries server-side, then enhanced client-side, then basic client-side'}
-              {screenshotMode === 'server' && 'Uses server Puppeteer (may have Chrome installation issues)'}
-              {screenshotMode === 'client' && 'Uses enhanced HTML + client rendering with html2canvas'}
+              {screenshotMode === 'layout-preserving' && '🏢 BEST: Preserves original email layout, centering, spacing, and styling exactly like the original'}
+              {screenshotMode === 'balanced-client' && '⚖️ Keeps email structure (tables, headings, formatting) while removing dangerous elements'}
+              {screenshotMode === 'stable-client' && '✨ Ultra-aggressive cleaning removes ALL scripts, CSS, and complex elements for 100% reliability'}
+              {screenshotMode === 'enhanced-client' && '🎯 Advanced image loading with CORS proxies (may have conflicts)'}
             </p>
           </div>
 
@@ -359,25 +270,13 @@ const ScreenshotActions: React.FC<ScreenshotActionsProps> = ({
 
           <div className="flex flex-wrap gap-3">
             <Button
-              onClick={handleBatchScreenshots}
+              onClick={() => selectedEmails.length > 0 && handleSingleScreenshot(selectedEmails[0])}
               disabled={isProcessing || selectedEmails.length === 0}
               className="flex items-center space-x-2"
             >
               <Camera className="h-4 w-4" />
               <span>
-                Take Screenshots ({selectedEmails.length})
-              </span>
-            </Button>
-
-            <Button
-              onClick={handleBatchZip}
-              disabled={isProcessing || selectedEmails.length === 0}
-              variant="secondary"
-              className="flex items-center space-x-2"
-            >
-              <Download className="h-4 w-4" />
-              <span>
-                Download ZIP ({selectedEmails.length})
+                Test Advanced Screenshot ({selectedEmails.length > 0 ? '1' : '0'})
               </span>
             </Button>
           </div>
@@ -392,13 +291,13 @@ const ScreenshotActions: React.FC<ScreenshotActionsProps> = ({
             <div className="text-sm text-muted-foreground">
               <p>Selected emails:</p>
               <ul className="list-disc list-inside mt-1 space-y-1">
-                {selectedEmails.slice(0, 5).map((email) => (
+                {selectedEmails.slice(0, 3).map((email) => (
                   <li key={email.id} className="truncate">
                     {email.subject} - {email.brand || 'unknown'}
                   </li>
                 ))}
-                {selectedEmails.length > 5 && (
-                  <li className="text-muted-foreground">... and {selectedEmails.length - 5} more</li>
+                {selectedEmails.length > 3 && (
+                  <li className="text-muted-foreground">... and {selectedEmails.length - 3} more</li>
                 )}
               </ul>
             </div>

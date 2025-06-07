@@ -3,14 +3,21 @@
 import type React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogIn } from 'lucide-react';
+import { LogIn, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AuthCardProps {
-  onAuthenticate: () => void;
-  isLoading: boolean;
+  // No longer need these props as we use the auth hook directly
 }
 
-const AuthCard: React.FC<AuthCardProps> = ({ onAuthenticate, isLoading }) => {
+const AuthCard: React.FC<AuthCardProps> = () => {
+  const { signInWithGoogle, loading, error, clearError } = useAuth();
+
+  const handleSignIn = async () => {
+    clearError();
+    await signInWithGoogle();
+  };
   return (
     <div className="flex items-center justify-center py-12">
       <Card className="w-full max-w-md shadow-xl">
@@ -29,14 +36,21 @@ const AuthCard: React.FC<AuthCardProps> = ({ onAuthenticate, isLoading }) => {
             MailScribe needs permission to access your Gmail emails (read-only) to provide its features.
             We value your privacy and security.
           </p>
+          {error && (
+            <Alert variant="destructive" className="w-full">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
           <Button
-            onClick={onAuthenticate}
-            disabled={isLoading}
+            onClick={handleSignIn}
+            disabled={loading}
             size="lg"
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <LogIn className="mr-2 h-5 w-5" />
-            {isLoading ? 'Connecting...' : 'Sign in with Google'}
+            {loading ? 'Connecting...' : 'Sign in with Google'}
           </Button>
         </CardContent>
       </Card>

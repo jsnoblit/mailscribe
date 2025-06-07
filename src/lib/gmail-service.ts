@@ -1,4 +1,5 @@
 import { EmailMessage, SearchFilters, GmailSearchResponse, EmailContentResponse } from '@/types/email';
+import type { AuthUser } from '@/hooks/useAuth';
 
 export class GmailService {
   /**
@@ -38,17 +39,20 @@ export class GmailService {
   }
 
   /**
-   * Search Gmail messages
+   * Search Gmail messages using authenticated user
    */
   static async searchEmails(
-    accessToken: string,
+    user: AuthUser,
     filters: SearchFilters
   ): Promise<GmailSearchResponse> {
+    if (!user.accessToken) {
+      throw new Error('User is not authenticated or access token is missing');
+    }
     const query = this.buildSearchQuery(filters);
     
     console.log('Gmail Service: Making search request with:', {
-      hasAccessToken: !!accessToken,
-      tokenLength: accessToken.length,
+      hasAccessToken: !!user.accessToken,
+      tokenLength: user.accessToken.length,
       query,
       filters
     });
@@ -57,11 +61,13 @@ export class GmailService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${user.accessToken}`,
       },
       body: JSON.stringify({
-        accessToken,
+        accessToken: user.accessToken,
         query,
         maxResults: filters.maxResults || 50,
+        userId: user.uid,
       }),
     });
 
@@ -89,20 +95,25 @@ export class GmailService {
   }
 
   /**
-   * Get email HTML content
+   * Get email HTML content using authenticated user
    */
   static async getEmailContent(
-    accessToken: string,
+    user: AuthUser,
     messageId: string
   ): Promise<EmailContentResponse> {
+    if (!user.accessToken) {
+      throw new Error('User is not authenticated or access token is missing');
+    }
     const response = await fetch('/api/gmail/content', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${user.accessToken}`,
       },
       body: JSON.stringify({
-        accessToken,
+        accessToken: user.accessToken,
         messageId,
+        userId: user.uid,
       }),
     });
 
@@ -117,14 +128,14 @@ export class GmailService {
    * Get email content for multiple messages (batch)
    */
   static async getBatchEmailContent(
-    accessToken: string,
+    user: AuthUser,
     messages: EmailMessage[]
   ): Promise<EmailMessage[]> {
     const emailsWithContent: EmailMessage[] = [];
 
     for (const message of messages) {
       try {
-        const { htmlContent } = await this.getEmailContent(accessToken, message.id);
+        const { htmlContent } = await this.getEmailContent(user, message.id);
         emailsWithContent.push({
           ...message,
           htmlContent,
