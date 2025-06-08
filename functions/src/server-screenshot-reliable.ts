@@ -89,11 +89,10 @@ export const generateReliableServerScreenshot = onRequest(
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
                 line-height: 1.5;
                 margin: 0;
-                background: white;
+                background: transparent;
                 word-wrap: break-word;
               }
               .email-container {
-                padding: 20px;
                 max-width: 1200px;
                 margin: 0 auto;
               }
@@ -234,11 +233,10 @@ export const generateClientSideScreenshotData = onRequest(
                       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
                       line-height: 1.5;
                       margin: 0;
-                      background: white;
+                      background: transparent;
                       word-wrap: break-word;
                     }
                     .email-container {
-                      padding: 20px;
                       max-width: 1200px;
                       margin: 0 auto;
                     }
