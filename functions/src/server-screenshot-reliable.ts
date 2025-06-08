@@ -124,9 +124,7 @@ export const generateReliableServerScreenshot = onRequest(
             </style>
           </head>
           <body>
-            <div class="email-container">
-              ${htmlContent}
-            </div>
+            ${htmlContent}
           </body>
           </html>
         `;
@@ -268,9 +266,7 @@ export const generateClientSideScreenshotData = onRequest(
                   </style>
                 </head>
                 <body>
-                  <div class="email-container">
-                    ${htmlContent}
-                  </div>
+                  ${htmlContent}
                 </body>
                 </html>
               `;
