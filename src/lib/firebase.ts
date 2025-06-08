@@ -1,14 +1,14 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
-// Firebase configuration - works both locally and in Firebase App Hosting
+// Firebase configuration with hardcoded values as fallback for App Hosting
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBxgTI7qfyMH0wjWh-i6wBb5B77IGDu2Iw",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "mailscribe-ae722.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "mailscribe-ae722",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "mailscribe-ae722.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "300010916290",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:300010916290:web:54186103d7511a8ca9ae5b",
 };
 
 // Debug logging
@@ -17,6 +17,14 @@ console.log('🔑 Using config:', {
   authDomain: firebaseConfig.authDomain,
   hasApiKey: !!firebaseConfig.apiKey,
   hasAppId: !!firebaseConfig.appId,
+});
+
+// Additional debugging for deployment
+console.log('🔍 Environment debug:', {
+  NODE_ENV: process.env.NODE_ENV,
+  NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'present' : 'missing',
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? 'present' : 'missing',
+  allEnvKeys: Object.keys(process.env).filter(key => key.startsWith('NEXT_PUBLIC_')),
 });
 
 // Validate we have valid configuration
