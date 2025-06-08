@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "mailscribe-ae722"
+  },
+  "targets": {
+    "mailscribe-ae722": {
+      "hosting": {
+        "default": ["mailscribe-back"]
+      }
+    }
+  }
+}

@@ -1,15 +1,23 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
 // Read Firebase configuration from environment variables
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+let firebaseConfig;
+
+if (process.env.FIREBASE_WEBAPP_CONFIG) {
+  // Use config from Firebase App Hosting
+  firebaseConfig = JSON.parse(process.env.FIREBASE_WEBAPP_CONFIG);
+} else {
+  // Fallback for local development
+  firebaseConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  };
+}
 
 // Debug logging
 console.log('🔑 Using config:', {
@@ -28,12 +36,17 @@ if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
     hasApiKey: !!firebaseConfig.apiKey,
     hasAppId: !!firebaseConfig.appId,
   });
+  console.error('Environment variables:', {
+    NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'present' : 'missing',
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? 'present' : 'missing',
+    FIREBASE_WEBAPP_CONFIG: process.env.FIREBASE_WEBAPP_CONFIG ? 'present' : 'missing',
+  });
   throw new Error('Firebase configuration is incomplete. Make sure environment variables are set.');
 }
 
 // Initialize Firebase
 console.log('🚀 Initializing Firebase with config...');
-const app = initializeApp(firebaseConfig);
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);

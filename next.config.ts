@@ -1,6 +1,7 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+  // output: 'export', // Commented out to support API routes
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,

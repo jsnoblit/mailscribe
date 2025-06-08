@@ -15,7 +15,7 @@
     }
   ],
   "hosting": {
-    "public": "out",
+    "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -27,5 +27,18 @@
         "destination": "/index.html"
       }
     ]
-  }
+  },
+  "apphosting": [
+    {
+      "backendId": "mailscribe-back",
+      "rootDir": "/",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "functions"
+      ]
+    }
+  ]
 }
