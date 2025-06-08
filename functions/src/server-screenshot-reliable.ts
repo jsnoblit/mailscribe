@@ -74,7 +74,7 @@ export const generateReliableServerScreenshot = onRequest(
         }
 
         // User-directed fix: remove specific background color from wrapper divs
-        htmlContent = htmlContent.replace(/background-color:\s*#EFF3F7;?/gi, "");
+        htmlContent = htmlContent.replace(/(<div[^>]*class="[^"]*wrapper[^"]*"[^>]*style="[^"]*)background-color:\s*#EFF3F7([^"]*)/gi, '$1background-color: transparent$2');
 
         // Instead of using Puppeteer, let's try a different approach
         // For Firebase Functions, we'll use a simpler HTML-to-image conversion
@@ -223,7 +223,7 @@ export const generateClientSideScreenshotData = onRequest(
 
             if (htmlContent) {
               // User-directed fix: remove specific background color from wrapper divs
-              htmlContent = htmlContent.replace(/background-color:\s*#EFF3F7;?/gi, "");
+              htmlContent = htmlContent.replace(/(<div[^>]*class="[^"]*wrapper[^"]*"[^>]*style="[^"]*)background-color:\s*#EFF3F7([^"]*)/gi, '$1background-color: transparent$2');
 
               // Enhanced HTML template
               const fullHtml = `
