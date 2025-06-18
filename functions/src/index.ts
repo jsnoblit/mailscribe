@@ -16,6 +16,8 @@ const corsHandler = cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 });
 
+console.log('index.ts LOADED');
+
 /**
  * Test function to verify deployment works
  */
