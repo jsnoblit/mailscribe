@@ -170,45 +170,72 @@ export const generateServerScreenshot = onRequest(
           deviceScaleFactor: 2, // High DPI for quality
         });
 
-        // Enhanced HTML template for better email rendering
-        const fullHtml = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-              body {
-                font-family: Arial, sans-serif;
-                line-height: 1.4;
-                margin: 20px;
-                background: white;
-                width: 1160px; /* Slightly less than viewport for padding */
-              }
-              img {
-                max-width: 100%;
-                height: auto;
-                display: block;
-              }
-              /* Fix common email styling issues */
-              table { border-collapse: collapse; }
-              .email-content { max-width: 100%; }
-            </style>
-          </head>
-          <body>
-            <div class="email-content">
-              ${htmlContent}
-            </div>
-          </body>
-          </html>
-        `;
-
         // Set content and wait for everything to load
-        await page.setContent(fullHtml, {
-          waitUntil: ["networkidle0", "domcontentloaded"],
-          timeout: 30000,
-        });
-
+        let contentToRender = htmlContent.trim();
+        // Hotels.com obvious pink background CSS for testing
+        const HOTELS_PINK_CSS = `
+<style>
+body, html, .background-contrast, .background-base, .section, .column, .email-content {
+  background: pink !important;
+  background-color: pink !important;
+}
+</style>
+`;
+        // Only inject for hotels.com brand and full HTML docs
+        if (
+          (brand && brand.toLowerCase().includes('hotels.com')) &&
+          (contentToRender.startsWith('<!DOCTYPE') || contentToRender.startsWith('<html'))
+        ) {
+          // Insert pink background CSS after <head>
+          contentToRender = contentToRender.replace(/<head>/i, `<head>${HOTELS_PINK_CSS}`);
+        }
+        if (
+          contentToRender.startsWith('<!DOCTYPE') ||
+          contentToRender.startsWith('<html')
+        ) {
+          // Use the email HTML as-is (possibly with injected CSS)
+          await page.setContent(contentToRender, {
+            waitUntil: ["networkidle0", "domcontentloaded"],
+            timeout: 30000,
+          });
+        } else {
+          // Enhanced HTML template for better email rendering
+          const fullHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  line-height: 1.4;
+                  margin: 20px;
+                  background: white;
+                  width: 1160px; /* Slightly less than viewport for padding */
+                }
+                img {
+                  max-width: 100%;
+                  height: auto;
+                  display: block;
+                }
+                /* Fix common email styling issues */
+                table { border-collapse: collapse; }
+                .email-content { max-width: 100%; }
+              </style>
+            </head>
+            <body>
+              <div class="email-content">
+                ${contentToRender}
+              </div>
+            </body>
+            </html>
+          `;
+          await page.setContent(fullHtml, {
+            waitUntil: ["networkidle0", "domcontentloaded"],
+            timeout: 30000,
+          });
+        }
         // Wait extra time for images to load
         await page.waitForTimeout(3000);
 
