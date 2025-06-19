@@ -3,8 +3,6 @@ import * as admin from "firebase-admin";
 import {google} from "googleapis";
 import cors from "cors";
 
-console.log('server-screenshot-reliable.ts CALLED');
-
 // Configure CORS
 const corsHandler = cors({
   origin: true,

@@ -10,8 +10,6 @@ admin.initializeApp();
 // Configure CORS
 const corsHandler = cors({origin: true});
 
-console.log('index-with-puppeteer.ts LOADED');
-
 /**
  * Search Gmail messages based on query parameters
  */

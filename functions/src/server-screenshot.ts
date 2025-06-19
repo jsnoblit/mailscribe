@@ -6,8 +6,6 @@ import cors from "cors";
 import * as path from "path";
 import * as fs from "fs";
 
-console.log('server-screenshot.ts CALLED');
-
 // Configure CORS
 const corsHandler = cors({
   origin: true,
@@ -27,7 +25,6 @@ export const generateServerScreenshot = onRequest(
     cpu: 1,
   },
   (req, res) => {
-    console.log('generateServerScreenshot called'); // Log function entry
     corsHandler(req, res, async () => {
       let browser;
       try {
@@ -175,62 +172,67 @@ export const generateServerScreenshot = onRequest(
 
         // Set content and wait for everything to load
         let contentToRender = htmlContent.trim();
-        console.log('DEBUG: brand:', brand);
-        const isFullDoc = contentToRender.startsWith('<!DOCTYPE') || contentToRender.startsWith('<html');
-        console.log('DEBUG: isFullDoc:', isFullDoc);
-        console.log('DEBUG: contentToRender (start):', contentToRender.slice(0, 500));
-        // Aggressive pink background CSS for all emails (for testing)
-        const PINK_CSS = `
+        // Hotels.com obvious pink background CSS for testing
+        const HOTELS_PINK_CSS = `
 <style>
-* {
+body, html, .background-contrast, .background-base, .section, .column, .email-content {
   background: pink !important;
   background-color: pink !important;
-  color: black !important;
 }
 </style>
 `;
+        const isHotels = brand && brand.toLowerCase().includes('hotels.com');
+        const isFullDoc = contentToRender.startsWith('<!DOCTYPE') || contentToRender.startsWith('<html');
+        let finalHtml = ""; // Track the HTML actually rendered
+        if (isHotels && isFullDoc) {
+          // Insert pink background CSS after <head> in full doc
+          contentToRender = contentToRender.replace(/<head>/i, `<head>${HOTELS_PINK_CSS}`);
+        }
         if (isFullDoc) {
-          // Insert pink CSS after <head> in full doc
-          contentToRender = contentToRender.replace(/<head>/i, `<head>${PINK_CSS}`);
-          console.log('DEBUG: contentToRender (after CSS):', contentToRender.slice(0, 500));
+          // Use the email HTML as-is (possibly with injected CSS)
+          finalHtml = contentToRender;
           await page.setContent(contentToRender, {
             waitUntil: ["networkidle0", "domcontentloaded"],
             timeout: 30000,
           });
         } else {
-          // Insert pink CSS after <head> in wrapped doc
+          // Enhanced HTML template for better email rendering
           let fullHtml = `
             <!DOCTYPE html>
             <html>
             <head>
-              <meta charset=\"utf-8\">
-              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
               <style>
                 body {
                   font-family: Arial, sans-serif;
                   line-height: 1.4;
                   margin: 20px;
                   background: white;
-                  width: 1160px;
+                  width: 1160px; /* Slightly less than viewport for padding */
                 }
                 img {
                   max-width: 100%;
                   height: auto;
                   display: block;
                 }
+                /* Fix common email styling issues */
                 table { border-collapse: collapse; }
                 .email-content { max-width: 100%; }
               </style>
-              ${PINK_CSS}
             </head>
             <body>
-              <div class=\"email-content\">
+              <div class="email-content">
                 ${contentToRender}
               </div>
             </body>
             </html>
           `;
-          console.log('DEBUG: fullHtml (after CSS):', fullHtml.slice(0, 500));
+          if (isHotels) {
+            // Insert pink background CSS after <head> in wrapped doc
+            fullHtml = fullHtml.replace(/<head>/i, `<head>${HOTELS_PINK_CSS}`);
+          }
+          finalHtml = fullHtml;
           await page.setContent(fullHtml, {
             waitUntil: ["networkidle0", "domcontentloaded"],
             timeout: 30000,
@@ -261,6 +263,7 @@ export const generateServerScreenshot = onRequest(
           filename: filename,
           messageId: messageId,
           success: true,
+          renderedHtml: finalHtml,
         });
 
       } catch (error) {
