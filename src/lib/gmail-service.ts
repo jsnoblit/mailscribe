@@ -45,14 +45,14 @@ export class GmailService {
     user: AuthUser,
     filters: SearchFilters
   ): Promise<GmailSearchResponse> {
-    if (!user.accessToken) {
-      throw new Error('User is not authenticated or access token is missing');
+    if (!user.gmailAccessToken) {
+      throw new Error('User is not authenticated or Gmail access token is missing');
     }
     const query = this.buildSearchQuery(filters);
     
     console.log('Gmail Service: Making search request with:', {
-      hasAccessToken: !!user.accessToken,
-      tokenLength: user.accessToken.length,
+      hasAccessToken: !!user.gmailAccessToken,
+      tokenLength: user.gmailAccessToken.length,
       query,
       filters
     });
@@ -61,10 +61,10 @@ export class GmailService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${user.accessToken}`,
+        'Authorization': `Bearer ${user.gmailAccessToken}`,
       },
       body: JSON.stringify({
-        accessToken: user.accessToken,
+        accessToken: user.gmailAccessToken,
         query,
         maxResults: filters.maxResults || 50,
         userId: user.uid,
@@ -101,17 +101,17 @@ export class GmailService {
     user: AuthUser,
     messageId: string
   ): Promise<EmailContentResponse> {
-    if (!user.accessToken) {
-      throw new Error('User is not authenticated or access token is missing');
+    if (!user.gmailAccessToken) {
+      throw new Error('User is not authenticated or Gmail access token is missing');
     }
     const response = await fetch('/api/gmail/content', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${user.accessToken}`,
+        'Authorization': `Bearer ${user.gmailAccessToken}`,
       },
       body: JSON.stringify({
-        accessToken: user.accessToken,
+        accessToken: user.gmailAccessToken,
         messageId,
         userId: user.uid,
       }),

@@ -4,12 +4,12 @@ import type React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import type { Email } from '@/types';
+import type { EmailMessage } from '@/types/email';
 import { Mail } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 interface EmailListItemProps {
-  email: Email;
+  email: EmailMessage;
   isSelected: boolean;
   onSelectionChange: (isSelected: boolean) => void;
 }
@@ -42,15 +42,15 @@ const EmailListItem: React.FC<EmailListItemProps> = ({ email, isSelected, onSele
           id={`email-${email.id}`}
           checked={isSelected}
           onCheckedChange={(checked) => onSelectionChange(checked as boolean)}
-          aria-label={`Select email from ${email.from || email.sender} with subject ${email.subject}`}
+          aria-label={`Select email from ${email.from} with subject ${email.subject}`}
         />
         <Label htmlFor={`email-${email.id}`} className="flex-grow cursor-pointer">
           <div className="flex items-center">
              <Mail className="h-5 w-5 mr-3 text-muted-foreground flex-shrink-0" />
             <div className="flex-grow min-w-0">
               <div className="flex justify-between items-start">
-                <p className="text-sm font-medium text-foreground truncate" title={email.from || email.sender}>
-                  {email.from || email.sender}
+                <p className="text-sm font-medium text-foreground truncate" title={email.from}>
+                  {email.from}
                 </p>
                 <p className="text-xs text-muted-foreground whitespace-nowrap ml-2">
                   {formattedDate}

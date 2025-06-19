@@ -73,6 +73,9 @@ export const generateReliableServerScreenshot = onRequest(
           return;
         }
 
+        // User-directed fix: remove specific background color from wrapper divs
+        htmlContent = htmlContent.replace(/(<div[^>]*class="[^"]*wrapper[^"]*"[^>]*style="[^"]*)background-color:\s*#EFF3F7([^"]*)/gi, '$1background-color: transparent$2');
+
         // Instead of using Puppeteer, let's try a different approach
         // For Firebase Functions, we'll use a simpler HTML-to-image conversion
         // or return the HTML for client-side processing
@@ -86,36 +89,45 @@ export const generateReliableServerScreenshot = onRequest(
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <style>
               body {
-                font-family: Arial, sans-serif;
-                line-height: 1.4;
-                margin: 20px;
-                background: white;
-                max-width: 1160px;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+                line-height: 1.5;
+                margin: 0;
+                background: transparent;
                 word-wrap: break-word;
               }
+              .email-container {
+                max-width: 1200px;
+                margin: 0 auto;
+              }
               img {
-                max-width: 100%;
-                height: auto;
-                display: block;
+                max-width: 100% !important;
+                height: auto !important;
+                vertical-align: middle;
               }
               table { 
                 border-collapse: collapse; 
                 max-width: 100%;
+                border-spacing: 0;
               }
-              .email-content { 
-                max-width: 100%; 
-                overflow-wrap: break-word;
+              td, th {
+                vertical-align: top;
+                padding: 4px 8px;
               }
-              /* Prevent content from being too wide */
-              * {
-                max-width: 100%;
+              /* Center content in button-like links */
+              a[href*="View"], a[href*="Manage"], a[role="button"], .button {
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                text-align: center !important;
+              }
+              /* Better alignment for icons/text */
+              td > img + span, td > span + img {
+                 vertical-align: middle;
               }
             </style>
           </head>
           <body>
-            <div class="email-content">
-              ${htmlContent}
-            </div>
+            ${htmlContent}
           </body>
           </html>
         `;
@@ -210,6 +222,9 @@ export const generateClientSideScreenshotData = onRequest(
             }
 
             if (htmlContent) {
+              // User-directed fix: remove specific background color from wrapper divs
+              htmlContent = htmlContent.replace(/(<div[^>]*class="[^"]*wrapper[^"]*"[^>]*style="[^"]*)background-color:\s*#EFF3F7([^"]*)/gi, '$1background-color: transparent$2');
+
               // Enhanced HTML template
               const fullHtml = `
                 <!DOCTYPE html>
@@ -219,35 +234,45 @@ export const generateClientSideScreenshotData = onRequest(
                   <meta name="viewport" content="width=device-width, initial-scale=1">
                   <style>
                     body {
-                      font-family: Arial, sans-serif;
-                      line-height: 1.4;
-                      margin: 20px;
-                      background: white;
-                      max-width: 1160px;
+                      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+                      line-height: 1.5;
+                      margin: 0;
+                      background: transparent;
                       word-wrap: break-word;
                     }
+                    .email-container {
+                      max-width: 1200px;
+                      margin: 0 auto;
+                    }
                     img {
-                      max-width: 100%;
-                      height: auto;
-                      display: block;
+                      max-width: 100% !important;
+                      height: auto !important;
+                      vertical-align: middle;
                     }
                     table { 
                       border-collapse: collapse; 
                       max-width: 100%;
+                      border-spacing: 0;
                     }
-                    .email-content { 
-                      max-width: 100%; 
-                      overflow-wrap: break-word;
+                    td, th {
+                      vertical-align: top;
+                      padding: 4px 8px;
                     }
-                    * {
-                      max-width: 100%;
+                    /* Center content in button-like links */
+                    a[href*="View"], a[href*="Manage"], a[role="button"], .button {
+                      display: inline-flex !important;
+                      align-items: center !important;
+                      justify-content: center !important;
+                      text-align: center !important;
+                    }
+                    /* Better alignment for icons/text */
+                    td > img + span, td > span + img {
+                       vertical-align: middle;
                     }
                   </style>
                 </head>
                 <body>
-                  <div class="email-content">
-                    ${htmlContent}
-                  </div>
+                  ${htmlContent}
                 </body>
                 </html>
               `;

@@ -12,7 +12,7 @@ import { auth, googleProvider } from '@/lib/firebase';
 
 export interface AuthUser extends User {
   accessToken?: string;
-  refreshToken?: string;
+  refreshToken: string;
   gmailAccessToken?: string; // Add Gmail-specific access token
 }
 
@@ -45,16 +45,29 @@ export const useAuthState = () => {
       if (firebaseUser) {
         // Get the access token for Gmail API calls
         firebaseUser.getIdToken().then((token) => {
-          const authUser: AuthUser = {
+          const newAuthData = {
             ...firebaseUser,
             accessToken: token,
           };
+          
           console.log('🔍 Firebase Auth Token Debug:', {
             hasFirebaseToken: !!token,
             firebaseTokenLength: token?.length,
             firebaseTokenPreview: token?.substring(0, 50) + '...',
           });
-          setUser(authUser);
+
+          // Check for persisted Gmail access token
+          const persistedGmailToken = sessionStorage.getItem('gmailAccessToken');
+          if (persistedGmailToken) {
+            console.log('✅ Found persisted Gmail token in sessionStorage');
+          }
+
+          // Use functional update to merge states
+          setUser(currentUser => ({
+            ...(currentUser || {}), // Keep existing gmailAccessToken
+            ...newAuthData,
+            gmailAccessToken: currentUser?.gmailAccessToken || persistedGmailToken || undefined,
+          } as AuthUser));
           setLoading(false);
         }).catch((err) => {
           console.error('Error getting ID token:', err);
@@ -82,9 +95,14 @@ export const useAuthState = () => {
       const gmailAccessToken = credential?.accessToken; // This is the Gmail OAuth token
       
       if (result.user) {
+        if (gmailAccessToken) {
+          sessionStorage.setItem('gmailAccessToken', gmailAccessToken);
+          console.log('✅ Stored Gmail access token in sessionStorage');
+        }
+
         const authUser: AuthUser = {
           ...result.user,
-          accessToken: undefined, // We'll get this separately
+          accessToken: undefined, // Will be set by onAuthStateChanged
           gmailAccessToken: gmailAccessToken || undefined, // Store Gmail token
         };
         console.log('🔍 OAuth Token Debug:', {
@@ -127,6 +145,8 @@ export const useAuthState = () => {
       setError(null);
       await signOut(auth);
       setUser(null);
+      sessionStorage.removeItem('gmailAccessToken');
+      console.log('🗑️ Cleared Gmail access token from sessionStorage');
     } catch (err: any) {
       console.error('Sign out error:', err);
       setError('Failed to sign out');

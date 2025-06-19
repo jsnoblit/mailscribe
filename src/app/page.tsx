@@ -8,7 +8,7 @@ import AuthDebugPanel from '@/components/debug/AuthDebugPanel';
 import SearchForm from '@/components/search/SearchForm';
 import EmailList from '@/components/results/EmailList';
 import ScreenshotActions from '@/components/actions/ScreenshotActions';
-import type { Email, SearchCriteria, GeneratedScreenshot, EmailMessage } from '@/types';
+import type { SearchCriteria, EmailMessage, GeneratedScreenshot } from '@/types/email';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { GmailService } from '@/lib/gmail-service';
@@ -24,12 +24,12 @@ import JSZip from 'jszip';
 export default function MailScribePage() {
   const { user, loading: isAuthLoading } = useAuth();
   
-  const [emails, setEmails] = useState<Email[]>([]);
+  const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   
   // Advanced screenshot options
-  const [screenshotMode, setScreenshotMode] = useState<'layout-preserving' | 'balanced-client' | 'stable-client' | 'enhanced-client'>('layout-preserving');
+  const [screenshotMode, setScreenshotMode] = useState<'layout-preserving' | 'enhanced-server'>('enhanced-server');
   const [downloadFormat, setDownloadFormat] = useState<'individual-png' | 'zip'>('individual-png');
   const [isProcessingScreenshots, setIsProcessingScreenshots] = useState(false);
   const [screenshotProgress, setScreenshotProgress] = useState(0);
@@ -132,44 +132,21 @@ export default function MailScribePage() {
       const data = await response.json();
       console.log('Search API success:', data);
       
-      // Extract brand from sender like integrated page
-      const extractBrandFromSender = (fromAddress: string): string => {
-        try {
-          // Extract email from "Name <email@domain.com>" format
-          const emailMatch = fromAddress.match(/<([^>]+)>/);
-          const email = emailMatch ? emailMatch[1] : fromAddress;
-          
-          // Extract domain
-          const domain = email.split('@')[1];
-          
-          // Extract brand name (remove common TLDs and subdomains)
-          const brandMatch = domain.match(/([^.]+)\.(com|org|net|edu|gov|io|co\.uk|co|app)$/);
-          
-          if (brandMatch) {
-            return brandMatch[1];
-          }
-          
-          // Fallback to first part of domain
-          return domain.split('.')[0];
-        } catch (error) {
-          return 'unknown';
-        }
-      };
+      // Add brand info to emails before fetching content
+      const emailsWithBrand = GmailService.addBrandInfo(data.messages);
       
-      // Convert to Email[] format for compatibility
-      const emails: Email[] = data.messages.map((msg: any) => ({
-        id: msg.id,
-        sender: msg.from,
-        subject: msg.subject,
-        date: msg.date,
-        bodyHtml: '', // Will be loaded when needed
-        snippet: msg.snippet,
-        brand: extractBrandFromSender(msg.from),
-      }));
+      // Now, fetch the full content for these emails
+      toast({ 
+        title: "Fetching Email Content", 
+        description: `Getting the full content for ${emailsWithBrand.length} emails...`,
+        variant: "default"
+      });
+      
+      const emailsWithContent = await GmailService.getBatchEmailContent(user, emailsWithBrand);
 
-      setEmails(emails);
+      setEmails(emailsWithContent);
       
-      if (emails.length === 0) {
+      if (emailsWithContent.length === 0) {
         toast({ 
           title: "No Results", 
           description: "No emails found matching your criteria.", 
@@ -178,7 +155,7 @@ export default function MailScribePage() {
       } else {
         toast({ 
           title: "Search Complete", 
-          description: `Found ${emails.length} email(s) matching your criteria.`, 
+          description: `Found and loaded ${emailsWithContent.length} email(s).`, 
           variant: "default"
         });
       }
@@ -302,49 +279,45 @@ export default function MailScribePage() {
     const newScreenshots: GeneratedScreenshot[] = [];
 
     for (const email of emailsToProcess) {
+      processedCount++;
+      setCurrentStep(`Processing: ${email.subject || email.id}`);
+
       try {
-        setCurrentStep(`Processing: ${email.subject}`);
+        let dataUrl: string;
+        let filename: string;
         
-        // Get email content if not already available
-        let emailContent = email.bodyHtml;
-        if (!emailContent) {
-          try {
-            setCurrentStep(`Loading content for: ${email.subject}`);
-            const contentResponse = await GmailService.getEmailContent(user, email.id);
-            emailContent = contentResponse.htmlContent;
-            console.log('Loaded email content length:', emailContent.length);
-            console.log('Email content preview:', emailContent.substring(0, 500));
-          } catch (contentError) {
-            console.error(`Failed to get content for email ${email.id}:`, contentError);
-            emailContent = `<html><body><h2>Email: ${email.subject}</h2><p>From: ${email.sender}</p><p>Date: ${new Date(email.date).toLocaleDateString()}</p><p>Content could not be loaded</p></body></html>`;
+        if (screenshotMode === 'layout-preserving') {
+          const { LayoutPreservingScreenshotService } = await import('@/lib/layout-preserving-screenshot-service');
+          filename = `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`;
+          dataUrl = await LayoutPreservingScreenshotService.captureLayoutPreservingScreenshot(email.htmlContent || '', filename);
+        } else { // 'enhanced-server'
+          const response = await fetch('/api/server-screenshot', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              accessToken: user.gmailAccessToken,
+              messageId: email.id,
+              brand: email.brand || 'unknown',
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Server screenshot failed' }));
+            throw new Error(errorData.error || `Server screenshot failed: ${response.status}`);
           }
-        } else {
-          console.log('Using existing email content length:', emailContent.length);
+
+          const data = await response.json();
+          console.log('Server screenshot response data:', data);
+          if (!data.success || !data.htmlContent) {
+            throw new Error('Invalid response from server screenshot service, expected htmlContent.');
+          }
+          
+          const { RawScreenshotService } = await import('@/lib/raw-screenshot-service');
+          filename = data.filename;
+          dataUrl = await RawScreenshotService.captureRawScreenshot(data.htmlContent, filename);
         }
-        
-        // Generate filename
-        const filename = `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`;
-        
-        // Simulate screenshot generation based on mode
-        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
-        
-        // Mock screenshot data
-        const canvas = document.createElement('canvas');
-        canvas.width = 800;
-        canvas.height = 600;
-        const ctx = canvas.getContext('2d')!;
-        
-        // Draw mock email content
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, 800, 600);
-        ctx.fillStyle = '#000000';
-        ctx.font = '16px Arial';
-        ctx.fillText(`Subject: ${email.subject}`, 20, 50);
-        ctx.fillText(`From: ${email.sender}`, 20, 80);
-        ctx.fillText(`Mode: ${screenshotMode}`, 20, 110);
-        ctx.fillText(`Date: ${new Date(email.date).toLocaleDateString()}`, 20, 140);
-        
-        const dataUrl = canvas.toDataURL('image/png');
         
         newScreenshots.push({ 
           emailId: email.id, 
@@ -352,16 +325,13 @@ export default function MailScribePage() {
           dataUrl 
         });
         
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Failed to process email ${email.id}:`, error);
-        toast({ 
-          title: "Screenshot Error", 
-          description: `Failed to generate screenshot for email: ${email.subject}`, 
-          variant: "destructive" 
+        toast({
+            title: `Screenshot Failed for ${email.subject || 'email'}`,
+            description: error.message,
+            variant: "destructive",
         });
-      } finally {
-        processedCount++;
-        setScreenshotProgress((processedCount / totalEmails) * 100);
       }
     }
 
@@ -377,9 +347,9 @@ export default function MailScribePage() {
         variant: "default" 
       });
     } else if (totalEmails > 0) {
-       toast({ 
+      toast({ 
         title: "Processing Failed", 
-        description: "Could not generate any screenshots.", 
+        description: `Could not generate screenshots for ${totalEmails} selected emails.`, 
         variant: "destructive" 
       });
     }
@@ -389,8 +359,8 @@ export default function MailScribePage() {
     if (generatedScreenshots.length === 0) {
       toast({ 
         title: "No Screenshots", 
-        description: "No screenshots available to download.", 
-        variant: "destructive" 
+        description: "There are no generated screenshots to download.", 
+        variant: "destructive"
       });
       return;
     }
@@ -408,9 +378,6 @@ export default function MailScribePage() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
-        // Small delay between downloads
-        await new Promise(resolve => setTimeout(resolve, 500));
       }
       
       toast({ 
@@ -418,8 +385,8 @@ export default function MailScribePage() {
         description: `Downloading ${generatedScreenshots.length} individual PNG files.`, 
         variant: "default" 
       });
-    } else {
-      // Create ZIP file
+
+    } else if (downloadFormat === 'zip') {
       const zip = new JSZip();
       
       for (const screenshot of generatedScreenshots) {
@@ -429,16 +396,15 @@ export default function MailScribePage() {
         zip.file(screenshot.fileName, blob);
       }
       
-      // Generate and download ZIP
       const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const zipUrl = URL.createObjectURL(zipBlob);
+      const url = URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
-      a.href = zipUrl;
-      a.download = `MailScribe_Screenshots_${Date.now()}.zip`;
+      a.href = url;
+      a.download = `mailscribe_screenshots_${Date.now()}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(zipUrl);
+      URL.revokeObjectURL(url);
       
       toast({ 
         title: "ZIP Download Started", 
@@ -458,11 +424,11 @@ export default function MailScribePage() {
     .map(email => ({
       id: email.id,
       subject: email.subject,
-      from: email.sender,
+      from: email.from,
       date: email.date,
       snippet: email.snippet || '',
       brand: email.brand,
-      htmlContent: email.bodyHtml,
+      htmlContent: email.htmlContent,
     }));
 
   // Show loading screen while checking authentication state
@@ -546,68 +512,38 @@ export default function MailScribePage() {
                         <div className="space-y-3">
                           <Label className="text-sm font-medium">Screenshot Method:</Label>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-3">
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="radio"
-                                  id="layout-preserving"
-                                  name="screenshot-mode"
-                                  checked={screenshotMode === 'layout-preserving'}
-                                  onChange={() => setScreenshotMode('layout-preserving')}
-                                  className="w-4 h-4"
-                                />
-                                <Label htmlFor="layout-preserving" className="text-sm font-semibold text-purple-600 cursor-pointer">
-                                  🏢 Layout-Preserving (Best)
-                                </Label>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="radio"
-                                  id="balanced-client"
-                                  name="screenshot-mode"
-                                  checked={screenshotMode === 'balanced-client'}
-                                  onChange={() => setScreenshotMode('balanced-client')}
-                                  className="w-4 h-4"
-                                />
-                                <Label htmlFor="balanced-client" className="text-sm text-blue-600 cursor-pointer">
-                                  ⚖️ Balanced Client
-                                </Label>
-                              </div>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="radio"
+                                id="enhanced-server"
+                                name="screenshot-mode"
+                                value="enhanced-server"
+                                checked={screenshotMode === 'enhanced-server'}
+                                onChange={() => setScreenshotMode('enhanced-server')}
+                                className="w-4 h-4"
+                              />
+                              <Label htmlFor="enhanced-server" className="text-sm font-semibold text-blue-600 cursor-pointer">
+                                Enhanced Client - Server side with Puppeteer
+                              </Label>
                             </div>
-                            <div className="space-y-3">
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="radio"
-                                  id="stable-client"
-                                  name="screenshot-mode"
-                                  checked={screenshotMode === 'stable-client'}
-                                  onChange={() => setScreenshotMode('stable-client')}
-                                  className="w-4 h-4"
-                                />
-                                <Label htmlFor="stable-client" className="text-sm text-green-600 cursor-pointer">
-                                  ✨ Ultra-Stable Client
-                                </Label>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  type="radio"
-                                  id="enhanced-client"
-                                  name="screenshot-mode"
-                                  checked={screenshotMode === 'enhanced-client'}
-                                  onChange={() => setScreenshotMode('enhanced-client')}
-                                  className="w-4 h-4"
-                                />
-                                <Label htmlFor="enhanced-client" className="text-sm cursor-pointer">
-                                  🎯 Enhanced Client
-                                </Label>
-                              </div>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="radio"
+                                id="layout-preserving"
+                                name="screenshot-mode"
+                                value="layout-preserving"
+                                checked={screenshotMode === 'layout-preserving'}
+                                onChange={() => setScreenshotMode('layout-preserving')}
+                                className="w-4 h-4"
+                              />
+                              <Label htmlFor="layout-preserving" className="text-sm font-semibold text-purple-600 cursor-pointer">
+                                Layout Preserving - Client side rendering
+                              </Label>
                             </div>
                           </div>
                           <p className="text-xs text-muted-foreground bg-gray-50 p-3 rounded">
-                            {screenshotMode === 'layout-preserving' && '🏢 BEST: Preserves original email layout, centering, spacing, and styling exactly like the original'}
-                            {screenshotMode === 'balanced-client' && '⚖️ Keeps email structure (tables, headings, formatting) while removing dangerous elements'}
-                            {screenshotMode === 'stable-client' && '✨ Ultra-aggressive cleaning removes ALL scripts, CSS, and complex elements for 100% reliability'}
-                            {screenshotMode === 'enhanced-client' && '🎯 Advanced image loading with CORS proxies (may have conflicts)'}
+                            {screenshotMode === 'layout-preserving' && 'Renders email on your machine. Best for preserving exact layout and fonts.'}
+                            {screenshotMode === 'enhanced-server' && 'Renders email on a server using Puppeteer. Best for handling complex emails and avoiding local CORS issues.'}
                           </p>
                         </div>
 
@@ -690,12 +626,6 @@ export default function MailScribePage() {
                         )}
                       </CardContent>
                     </Card>
-
-                    {/* Advanced Screenshot Actions Component */}
-                    <ScreenshotActions
-                      selectedEmails={selectedEmailObjects}
-                      accessToken={user.gmailAccessToken || ''}
-                    />
                   </div>
                 )}
               </TabsContent>
