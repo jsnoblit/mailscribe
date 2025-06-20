@@ -57,9 +57,9 @@ export const useAuthState = () => {
           });
 
           // Check for persisted Gmail access token
-          const persistedGmailToken = sessionStorage.getItem('gmailAccessToken');
+          const persistedGmailToken = localStorage.getItem('gmailAccessToken');
           if (persistedGmailToken) {
-            console.log('✅ Found persisted Gmail token in sessionStorage');
+            console.log('✅ Found persisted Gmail token in localStorage');
           }
 
           // Use functional update to merge states
@@ -96,8 +96,8 @@ export const useAuthState = () => {
       
       if (result.user) {
         if (gmailAccessToken) {
-          sessionStorage.setItem('gmailAccessToken', gmailAccessToken);
-          console.log('✅ Stored Gmail access token in sessionStorage');
+          localStorage.setItem('gmailAccessToken', gmailAccessToken);
+          console.log('✅ Stored Gmail access token in localStorage');
         }
 
         const authUser: AuthUser = {
@@ -145,8 +145,8 @@ export const useAuthState = () => {
       setError(null);
       await signOut(auth);
       setUser(null);
-      sessionStorage.removeItem('gmailAccessToken');
-      console.log('🗑️ Cleared Gmail access token from sessionStorage');
+      localStorage.removeItem('gmailAccessToken');
+      console.log('🗑️ Cleared Gmail access token from localStorage');
     } catch (err: any) {
       console.error('Sign out error:', err);
       setError('Failed to sign out');

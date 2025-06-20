@@ -1,5 +1,5 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
 
 // Firebase configuration with hardcoded values as fallback for App Hosting
 const firebaseConfig = {
@@ -50,6 +50,13 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);
+
+// Ensure credentials survive full browser restarts by persisting them in localStorage
+if (typeof window !== 'undefined') {
+  setPersistence(auth, browserLocalPersistence)
+    .then(() => console.log('📌 Firebase auth persistence set to LOCAL'))
+    .catch((err) => console.error('❌ Failed to set Firebase persistence', err));
+}
 
 // Configure Google Auth Provider with Gmail scope
 export const googleProvider = new GoogleAuthProvider();
