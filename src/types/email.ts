@@ -49,4 +49,5 @@ export interface GeneratedScreenshot {
   emailId: string;
   fileName: string;
   dataUrl: string; // Base64 encoded PNG or a URL to the stored image
+  renderedHtml?: string; // Optional: HTML content for download
 }

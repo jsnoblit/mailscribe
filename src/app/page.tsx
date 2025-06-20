@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { TestTube, Search, Mail, CheckCircle, XCircle, Settings, Camera, Download, FileArchive, FileImage } from 'lucide-react';
+import { TestTube, Search, Mail, CheckCircle, XCircle, Settings, Camera, Download, FileArchive, FileImage, FileText } from 'lucide-react';
 import JSZip from 'jszip';
 
 export default function MailScribePage() {
@@ -249,6 +249,39 @@ export default function MailScribePage() {
     }
   };
 
+  const handleDownloadHtml = (screenshot: GeneratedScreenshot) => {
+    if (!screenshot.renderedHtml) {
+      toast({
+        title: "No HTML Available",
+        description: "No HTML was found for this screenshot.",
+        variant: "destructive"
+      });
+      return;
+    }
+    const blob = new Blob([screenshot.renderedHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = screenshot.fileName.replace(/\.png$/, '.html');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPng = async (screenshot: GeneratedScreenshot) => {
+    const response = await fetch(screenshot.dataUrl);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = screenshot.fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleScreenshotSelected = async () => {
     if (!user) {
       toast({ 
@@ -285,6 +318,7 @@ export default function MailScribePage() {
       try {
         let dataUrl: string;
         let filename: string;
+        let renderedHtml: string | undefined = undefined;
         
         if (screenshotMode === 'layout-preserving') {
           const { LayoutPreservingScreenshotService } = await import('@/lib/layout-preserving-screenshot-service');
@@ -316,13 +350,16 @@ export default function MailScribePage() {
           
           const { RawScreenshotService } = await import('@/lib/raw-screenshot-service');
           filename = data.filename;
-          dataUrl = await RawScreenshotService.captureRawScreenshot(data.htmlContent, filename);
+          renderedHtml = data.htmlContent;
+          if (!renderedHtml) throw new Error("No htmlContent returned from server");
+          dataUrl = await RawScreenshotService.captureRawScreenshot(renderedHtml, filename);
         }
         
         newScreenshots.push({ 
           emailId: email.id, 
           fileName: filename,
-          dataUrl 
+          dataUrl,
+          renderedHtml,
         });
         
       } catch (error: any) {
@@ -622,6 +659,31 @@ export default function MailScribePage() {
                             <p className="text-sm text-green-800">
                               ✅ {generatedScreenshots.length} screenshots ready for download as {downloadFormat === 'zip' ? 'ZIP archive' : 'individual PNG files'}!
                             </p>
+                          </div>
+                        )}
+
+                        {screenshotsReady && !isProcessingScreenshots && downloadFormat === 'individual-png' && screenshotMode === 'enhanced-server' && (
+                          <div className="mt-6 space-y-2">
+                            <h4 className="font-medium text-sm mb-2">Download Files:</h4>
+                            {generatedScreenshots.map((screenshot) => (
+                              <div key={screenshot.emailId} className="flex items-center gap-2">
+                                <Button
+                                  variant="secondary"
+                                  onClick={() => handleDownloadPng(screenshot)}
+                                >
+                                  <Download className="mr-2 h-4 w-4" />
+                                  Download PNG
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => handleDownloadHtml(screenshot)}
+                                >
+                                  <FileText className="mr-2 h-4 w-4" />
+                                  Download HTML
+                                </Button>
+                                <span className="text-xs text-muted-foreground">{screenshot.fileName.replace(/\.png$/, '.html')}</span>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </CardContent>

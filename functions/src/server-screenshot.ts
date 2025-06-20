@@ -5,6 +5,7 @@ import puppeteer from "puppeteer";
 import cors from "cors";
 import * as path from "path";
 import * as fs from "fs";
+import { TestTube, Search, Mail, CheckCircle, XCircle, Settings, Camera, Download, FileArchive, FileImage, FileText } from 'lucide-react';
 
 // Configure CORS
 const corsHandler = cors({
