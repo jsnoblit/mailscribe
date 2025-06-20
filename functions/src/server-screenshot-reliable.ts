@@ -76,61 +76,18 @@ export const generateReliableServerScreenshot = onRequest(
         // User-directed fix: remove specific background color from wrapper divs
         htmlContent = htmlContent.replace(/(<div[^>]*class="[^"]*wrapper[^"]*"[^>]*style="[^"]*)background-color:\s*#EFF3F7([^"]*)/gi, '$1background-color: transparent$2');
 
-        // Instead of using Puppeteer, let's try a different approach
-        // For Firebase Functions, we'll use a simpler HTML-to-image conversion
-        // or return the HTML for client-side processing
+        // ------------------------------------------------------------------
+        // Return RAW Gmail HTML.  If the snippet we extracted is already a full
+        // document (<!DOCTYPE …> or <html …>), send it unchanged; otherwise
+        // wrap it in the thinnest possible shell so the browser can load it.
+        // ------------------------------------------------------------------
 
-        // Enhanced HTML template for better email rendering
-        const fullHtml = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-                line-height: 1.5;
-                margin: 0;
-                background: transparent;
-                word-wrap: break-word;
-              }
-              .email-container {
-                max-width: 1200px;
-                margin: 0 auto;
-              }
-              img {
-                max-width: 100% !important;
-                height: auto !important;
-                vertical-align: middle;
-              }
-              table { 
-                border-collapse: collapse; 
-                max-width: 100%;
-                border-spacing: 0;
-              }
-              td, th {
-                vertical-align: top;
-                padding: 4px 8px;
-              }
-              /* Center content in button-like links */
-              a[href*="View"], a[href*="Manage"], a[role="button"], .button {
-                display: inline-flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                text-align: center !important;
-              }
-              /* Better alignment for icons/text */
-              td > img + span, td > span + img {
-                 vertical-align: middle;
-              }
-            </style>
-          </head>
-          <body>
-            ${htmlContent}
-          </body>
-          </html>
-        `;
+        const trimmed = htmlContent.trim();
+        const isFullDoc = trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html');
+
+        const finalHtml = isFullDoc
+          ? trimmed
+          : `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>${htmlContent}</body></html>`;
 
         // Generate filename
         const timestamp = new Date().toISOString().split("T")[0];
@@ -143,7 +100,7 @@ export const generateReliableServerScreenshot = onRequest(
         // For now, return the HTML content for client-side processing
         // This avoids the Chrome installation issues in Firebase Functions
         res.json({
-          htmlContent: fullHtml,
+          htmlContent: finalHtml,
           filename: filename,
           messageId: messageId,
           success: true,
@@ -225,57 +182,17 @@ export const generateClientSideScreenshotData = onRequest(
               // User-directed fix: remove specific background color from wrapper divs
               htmlContent = htmlContent.replace(/(<div[^>]*class="[^"]*wrapper[^"]*"[^>]*style="[^"]*)background-color:\s*#EFF3F7([^"]*)/gi, '$1background-color: transparent$2');
 
-              // Enhanced HTML template
-              const fullHtml = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                  <meta charset="utf-8">
-                  <meta name="viewport" content="width=device-width, initial-scale=1">
-                  <style>
-                    body {
-                      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-                      line-height: 1.5;
-                      margin: 0;
-                      background: transparent;
-                      word-wrap: break-word;
-                    }
-                    .email-container {
-                      max-width: 1200px;
-                      margin: 0 auto;
-                    }
-                    img {
-                      max-width: 100% !important;
-                      height: auto !important;
-                      vertical-align: middle;
-                    }
-                    table { 
-                      border-collapse: collapse; 
-                      max-width: 100%;
-                      border-spacing: 0;
-                    }
-                    td, th {
-                      vertical-align: top;
-                      padding: 4px 8px;
-                    }
-                    /* Center content in button-like links */
-                    a[href*="View"], a[href*="Manage"], a[role="button"], .button {
-                      display: inline-flex !important;
-                      align-items: center !important;
-                      justify-content: center !important;
-                      text-align: center !important;
-                    }
-                    /* Better alignment for icons/text */
-                    td > img + span, td > span + img {
-                       vertical-align: middle;
-                    }
-                  </style>
-                </head>
-                <body>
-                  ${htmlContent}
-                </body>
-                </html>
-              `;
+              // ------------------------------------------------------------------
+              // Return RAW Gmail HTML.  If the snippet we extracted is already a full
+              // document (<!DOCTYPE …> or <html …>), send it unchanged; otherwise
+              // wrap it in the thinnest possible shell so the browser can load it.
+              // ------------------------------------------------------------------
+
+              const trimmedBatch = htmlContent.trim();
+              const isFullBatch = trimmedBatch.startsWith('<!DOCTYPE') || trimmedBatch.startsWith('<html');
+              const finalHtml = isFullBatch
+                ? trimmedBatch
+                : `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>${htmlContent}</body></html>`;
 
               // Generate filename
               const timestamp = new Date().toISOString().split("T")[0];
@@ -287,7 +204,7 @@ export const generateClientSideScreenshotData = onRequest(
 
               emailData.push({
                 messageId,
-                htmlContent: fullHtml,
+                htmlContent: finalHtml,
                 filename,
                 subject: messageDetails.data.payload?.headers?.find(h => h.name === "Subject")?.value || "",
               });
