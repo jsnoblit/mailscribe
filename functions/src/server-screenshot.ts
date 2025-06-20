@@ -181,13 +181,30 @@ export const generateServerScreenshot = onRequest(
           { name: "prefers-color-scheme", value: "light" },
         ]);
 
-        // Render the original HTML content as-is, with no injected or modified CSS
+        // -------------------------------------------------------------
+        // Inject a web-font so headless Chrome on Linux has a close
+        // match to Apple "SF Pro".  We preload an Inter TTF and
+        // declare it as a fallback face.  Gmail on macOS will still
+        // use the native system font; Puppeteer will download Inter.
+        // -------------------------------------------------------------
+
+        const fontInjection = `\n<link rel="preload" as="font" type="font/ttf" crossorigin href="https://fonts.gstatic.com/s/inter/v12/UcCn_537.ttf">\n<style>@font-face { font-family: 'SanFranciscoFallback'; src: url('https://fonts.gstatic.com/s/inter/v12/UcCn_537.ttf') format('truetype'); font-display: block; } body, p, h1, h2, h3, h4, span, a, li { font-family: 'SanFranciscoFallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }</style>`;
+
+        // Render the original HTML content, injecting the font snippet above
         let contentToRender = htmlContent.trim();
         const isFullDoc = contentToRender.startsWith('<!DOCTYPE') || contentToRender.startsWith('<html');
         let finalHtml = "";
         if (isFullDoc) {
-          finalHtml = contentToRender;
-          await page.setContent(contentToRender, {
+          // Insert fontInjection before closing </head>
+          let htmlWithFont = contentToRender;
+          if (contentToRender.includes('</head>')) {
+            htmlWithFont = contentToRender.replace('</head>', `${fontInjection}</head>`);
+          } else {
+            // Fallback: prepend at start of doc
+            htmlWithFont = fontInjection + contentToRender;
+          }
+          finalHtml = htmlWithFont;
+          await page.setContent(htmlWithFont, {
             waitUntil: ["networkidle0", "domcontentloaded"],
             timeout: 30000,
           });
@@ -199,6 +216,7 @@ export const generateServerScreenshot = onRequest(
             <head>
               <meta charset=\"utf-8\">
               <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+              ${fontInjection}
             </head>
             <body>
               ${contentToRender}
