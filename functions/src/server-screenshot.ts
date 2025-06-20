@@ -190,45 +190,30 @@ export const generateServerScreenshot = onRequest(
 
         const fontInjection = `\n<link rel="preload" as="font" type="font/ttf" crossorigin href="https://fonts.gstatic.com/s/inter/v12/UcCn_537.ttf">\n<style>@font-face { font-family: 'SanFranciscoFallback'; src: url('https://fonts.gstatic.com/s/inter/v12/UcCn_537.ttf') format('truetype'); font-display: block; } body, p, h1, h2, h3, h4, span, a, li { font-family: 'SanFranciscoFallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }</style>`;
 
-        // Render the original HTML content, injecting the font snippet above
-        let contentToRender = htmlContent.trim();
-        const isFullDoc = contentToRender.startsWith('<!DOCTYPE') || contentToRender.startsWith('<html');
-        let finalHtml = "";
-        if (isFullDoc) {
-          // Insert fontInjection before closing </head>
-          let htmlWithFont = contentToRender;
-          if (contentToRender.includes('</head>')) {
-            htmlWithFont = contentToRender.replace('</head>', `${fontInjection}</head>`);
-          } else {
-            // Fallback: prepend at start of doc
-            htmlWithFont = fontInjection + contentToRender;
-          }
-          finalHtml = htmlWithFont;
-          await page.setContent(htmlWithFont, {
-            waitUntil: ["networkidle0", "domcontentloaded"],
-            timeout: 30000,
-          });
-        } else {
-          // If not a full doc, wrap in minimal HTML shell (no extra CSS)
-          let fullHtml = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset=\"utf-8\">
-              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
-              ${fontInjection}
-            </head>
-            <body>
-              ${contentToRender}
-            </body>
-            </html>
-          `;
-          finalHtml = fullHtml;
-          await page.setContent(fullHtml, {
-            waitUntil: ["networkidle0", "domcontentloaded"],
-            timeout: 30000,
-          });
-        }
+        // Always wrap the Gmail HTML in a minimal shell that includes the
+        // font preload/@font-face snippet. This guarantees identical fonts
+        // across all environments, regardless of whether the payload was a
+        // complete document or a fragment.
+
+        const contentToRender = htmlContent.trim();
+
+        const finalHtml = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset=\"utf-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    ${fontInjection}
+  </head>
+  <body>
+    ${contentToRender}
+  </body>
+</html>`;
+
+        await page.setContent(finalHtml, {
+          waitUntil: ["networkidle0", "domcontentloaded"],
+          timeout: 30000,
+        });
+
         // Wait extra time for images to load
         await page.waitForTimeout(3000);
 
@@ -270,3 +255,4 @@ export const generateServerScreenshot = onRequest(
     });
   }
 );
+console.log('FONT BLOCK INJECTED') ;
