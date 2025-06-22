@@ -7,7 +7,7 @@ import AuthCard from '@/components/auth/AuthCard';
 import AuthDebugPanel from '@/components/debug/AuthDebugPanel';
 import SearchForm from '@/components/search/SearchForm';
 import EmailList from '@/components/results/EmailList';
-import ScreenshotActions from '@/components/actions/ScreenshotActions';
+import { ServerScreenshotService } from '@/lib/server-screenshot-service';
 import type { SearchCriteria, EmailMessage, GeneratedScreenshot } from '@/types/email';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,8 +28,8 @@ export default function MailScribePage() {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   
-  // Advanced screenshot options
-  const [screenshotMode, setScreenshotMode] = useState<'layout-preserving' | 'enhanced-server'>('enhanced-server');
+  // Only one screenshot mode now – server-side rendering via Puppeteer
+  const screenshotMode: 'enhanced-server' = 'enhanced-server';
   const [downloadFormat, setDownloadFormat] = useState<'individual-png' | 'zip'>('individual-png');
   const [isProcessingScreenshots, setIsProcessingScreenshots] = useState(false);
   const [screenshotProgress, setScreenshotProgress] = useState(0);
@@ -106,7 +106,7 @@ export default function MailScribePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          accessToken: user.gmailAccessToken, // Use Gmail OAuth token
+          accessToken: user.gmailAccessToken!, // Use Gmail OAuth token
           query,
           maxResults: 50,
         }),
@@ -314,46 +314,22 @@ export default function MailScribePage() {
     for (const email of emailsToProcess) {
       processedCount++;
       setCurrentStep(`Processing: ${email.subject || email.id}`);
+      setScreenshotProgress(Math.round((processedCount / totalEmails) * 100));
 
       try {
         let dataUrl: string;
         let filename: string;
-        let renderedHtml: string | undefined = undefined;
-        
-        if (screenshotMode === 'layout-preserving') {
-          const { LayoutPreservingScreenshotService } = await import('@/lib/layout-preserving-screenshot-service');
-          filename = `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`;
-          dataUrl = await LayoutPreservingScreenshotService.captureLayoutPreservingScreenshot(email.htmlContent || '', filename);
-        } else { // 'enhanced-server'
-          const response = await fetch('/api/server-screenshot', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              accessToken: user.gmailAccessToken,
-              messageId: email.id,
-              brand: email.brand || 'unknown',
-            }),
-          });
 
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'Server screenshot failed' }));
-            throw new Error(errorData.error || `Server screenshot failed: ${response.status}`);
-          }
+        filename = `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`;
 
-          const data = await response.json();
-          console.log('Server screenshot response data:', data);
-          if (!data.success || !data.htmlContent) {
-            throw new Error('Invalid response from server screenshot service, expected htmlContent.');
-          }
-          
-          const { RawScreenshotService } = await import('@/lib/raw-screenshot-service');
-          filename = data.filename;
-          renderedHtml = data.htmlContent;
-          if (!renderedHtml) throw new Error("No htmlContent returned from server");
-          dataUrl = await RawScreenshotService.captureRawScreenshot(renderedHtml, filename);
-        }
+        // Use the unified server-side screenshot service
+        dataUrl = await ServerScreenshotService.captureServerScreenshot(
+          email.id,
+          user.gmailAccessToken!,
+          email.brand,
+          filename
+        );
+        const renderedHtml: string | undefined = undefined; // No separate HTML returned now
         
         newScreenshots.push({ 
           emailId: email.id, 
@@ -545,42 +521,11 @@ export default function MailScribePage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-6">
-                        {/* Screenshot Method Selection */}
+                        {/* Screenshot Method (fixed) */}
                         <div className="space-y-3">
                           <Label className="text-sm font-medium">Screenshot Method:</Label>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="radio"
-                                id="enhanced-server"
-                                name="screenshot-mode"
-                                value="enhanced-server"
-                                checked={screenshotMode === 'enhanced-server'}
-                                onChange={() => setScreenshotMode('enhanced-server')}
-                                className="w-4 h-4"
-                              />
-                              <Label htmlFor="enhanced-server" className="text-sm font-semibold text-blue-600 cursor-pointer">
-                                Enhanced Client - Server side with Puppeteer
-                              </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="radio"
-                                id="layout-preserving"
-                                name="screenshot-mode"
-                                value="layout-preserving"
-                                checked={screenshotMode === 'layout-preserving'}
-                                onChange={() => setScreenshotMode('layout-preserving')}
-                                className="w-4 h-4"
-                              />
-                              <Label htmlFor="layout-preserving" className="text-sm font-semibold text-purple-600 cursor-pointer">
-                                Layout Preserving - Client side rendering
-                              </Label>
-                            </div>
-                          </div>
-                          <p className="text-xs text-muted-foreground bg-gray-50 p-3 rounded">
-                            {screenshotMode === 'layout-preserving' && 'Renders email on your machine. Best for preserving exact layout and fonts.'}
-                            {screenshotMode === 'enhanced-server' && 'Renders email on a server using Puppeteer. Best for handling complex emails and avoiding local CORS issues.'}
+                          <p className="text-sm bg-blue-50 p-3 rounded">
+                            Server Rendering (Puppeteer)
                           </p>
                         </div>
 

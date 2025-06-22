@@ -48,22 +48,30 @@ export const generateServerScreenshot = onRequest(
           format: "full",
         });
 
+        console.log(JSON.stringify(messageDetails.data.payload, null, 2));
+
         // Extract HTML content
         let htmlContent = "";
         const payload = messageDetails.data.payload;
 
         if (payload) {
-          const findHtmlContent = (part: any): string => {
-            if (part.mimeType === "text/html" && part.body?.data) {
-              return Buffer.from(part.body.data, "base64").toString("utf-8");
+          const findHtmlContent = (part:any):string => {
+            if (!part) return '';
+            if (part.mimeType?.startsWith('text/html') && part.body?.data) {
+              return Buffer.from(part.body.data, 'base64').toString('utf-8');
             }
+            // parts may exist at many levels
             if (part.parts) {
-              for (const subPart of part.parts) {
-                const html = findHtmlContent(subPart);
+              for (const p of part.parts) {
+                const html = findHtmlContent(p);
                 if (html) return html;
               }
             }
-            return "";
+            // some messages store the HTML as an attachment
+            if (part.mimeType?.startsWith('multipart/related') && part.body?.attachmentId) {
+              // fetch attachment via gmail.users.messages.attachments.get(...)
+            }
+            return '';
           };
 
           htmlContent = findHtmlContent(payload);
@@ -80,11 +88,11 @@ export const generateServerScreenshot = onRequest(
         }
 
         // Launch Puppeteer with Firebase Functions optimized settings
-        const browser = await puppeteer.launch({
+        browser = await puppeteer.launch({
           executablePath: await chromium.executablePath(), // points to the bundled binary in prod, null on local
           args: chromium.args,
-          headless: chromium.headless,
-          defaultViewport: { width: 600, height: 800, deviceScaleFactor: 1 },
+          headless: true,
+          defaultViewport: { width: 800, height: 800, deviceScaleFactor: 1 },
         });
 
         const page = await browser.newPage();
@@ -96,7 +104,7 @@ export const generateServerScreenshot = onRequest(
 
         // Set viewport for Gmail-like rendering
         await page.setViewport({
-          width: 600,
+          width: 800,
           height: 800,
           deviceScaleFactor: 1, // Gmail is not retina by default
         });
@@ -140,7 +148,7 @@ export const generateServerScreenshot = onRequest(
         });
 
         // Wait extra time for images to load
-        await page.waitForTimeout(3000);
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
         // Take screenshot
         const screenshot = await page.screenshot({

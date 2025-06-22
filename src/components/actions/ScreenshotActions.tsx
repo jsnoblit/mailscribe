@@ -7,14 +7,8 @@ import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Camera, Download, FileText, Loader2 } from 'lucide-react';
-import { EmailMessage } from '@/types';
-import { GmailService } from '@/lib/gmail-service';
-import { EmailScreenshotService } from '@/lib/screenshot-service';
+import { EmailMessage } from '@/types/email';
 import { ServerScreenshotService } from '@/lib/server-screenshot-service';
-import { HybridScreenshotService } from '@/lib/hybrid-screenshot-service';
-import { BalancedScreenshotService } from '@/lib/balanced-screenshot-service';
-import { LayoutPreservingScreenshotService } from '@/lib/layout-preserving-screenshot-service';
-import { UltraStableScreenshotService } from '@/lib/ultra-stable-screenshot-service';
 
 interface ScreenshotActionsProps {
   selectedEmails: EmailMessage[];
@@ -27,132 +21,27 @@ const ScreenshotActions: React.FC<ScreenshotActionsProps> = ({
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [screenshotMode, setScreenshotMode] = useState<'layout-preserving' | 'balanced-client' | 'stable-client' | 'enhanced-client'>('layout-preserving');
   const [currentStep, setCurrentStep] = useState('');
   const { toast } = useToast();
 
   const handleSingleScreenshot = async (email: EmailMessage) => {
     try {
       setIsProcessing(true);
-      setCurrentStep(`Loading content for: ${email.subject}`);
-      
-      // Check if we need to load email content
-      let emailWithContent = email;
-      if (!email.htmlContent) {
-        console.log('🔍 Loading email content for:', email.id);
-        
-        // Load the email content using Gmail service with direct API call (like integrated page)
-        const response = await fetch('/api/gmail/content', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            accessToken,
-            messageId: email.id,
-          }),
-        });
+      setCurrentStep(`Capturing screenshot for: ${email.subject}`);
 
-        if (!response.ok) {
-          throw new Error(`Failed to load email content: ${response.statusText}`);
-        }
+      const filename = `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`;
 
-        const contentData = await response.json();
-        emailWithContent = {
-          ...email,
-          htmlContent: contentData.htmlContent,
-        };
-        console.log('📧 Email content loaded successfully!');
-        console.log('📊 Content length:', contentData.htmlContent.length);
-        console.log('📄 Content preview:', contentData.htmlContent.substring(0, 200));
-      } else {
-        console.log('📧 Using existing email content, length:', email.htmlContent.length);
-      }
-      
-      if (!emailWithContent.htmlContent) {
-        toast({
-          title: "Error",
-          description: "Could not load email content. Please check your access token.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      setCurrentStep(`Taking screenshot of: ${email.subject}`);
-      
-      if (screenshotMode === 'layout-preserving') {
-        const screenshot = await LayoutPreservingScreenshotService.captureLayoutPreservingScreenshot(
-          emailWithContent.htmlContent,
-          `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`
-        );
-        
-        // Download the screenshot
-        const response = await fetch(screenshot);
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        toast({
-          title: "Success",
-          description: "Layout-preserving screenshot saved successfully!",
-        });
-      } else if (screenshotMode === 'balanced-client') {
-        const screenshot = await BalancedScreenshotService.captureBalancedScreenshot(
-          emailWithContent.htmlContent,
-          `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`
-        );
-        
-        // Download the screenshot
-        const response = await fetch(screenshot);
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        toast({
-          title: "Success",
-          description: "Balanced screenshot saved successfully!",
-        });
-      } else if (screenshotMode === 'stable-client') {
-        const screenshot = await UltraStableScreenshotService.captureUltraStableScreenshot(
-          emailWithContent.htmlContent,
-          `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`
-        );
-        
-        // Download the screenshot
-        const response = await fetch(screenshot);
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${email.brand || 'unknown'}_${email.subject?.replace(/[^a-zA-Z0-9]/g, '_') || 'email'}_${email.id}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        toast({
-          title: "Success",
-          description: "Ultra-stable screenshot saved successfully!",
-        });
-      } else {
-        // Handle other modes...
-        toast({
-          title: "Info",
-          description: "Other screenshot modes coming soon!",
-        });
-      }
+      await ServerScreenshotService.captureServerScreenshot(
+        email.id,
+        accessToken,
+        email.brand,
+        filename
+      );
+
+      toast({
+        title: "Success",
+        description: "Screenshot saved successfully!",
+      });
     } catch (error: any) {
       console.error('Screenshot error:', error);
       toast({
@@ -194,68 +83,8 @@ const ScreenshotActions: React.FC<ScreenshotActionsProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="p-3 bg-blue-50 rounded-lg space-y-3">
-            <Label className="text-sm font-medium">Screenshot Method:</Label>
-            <div className="flex flex-col space-y-2">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="layout-preserving-mode-advanced"
-                  name="screenshot-mode-advanced"
-                  checked={screenshotMode === 'layout-preserving'}
-                  onChange={() => setScreenshotMode('layout-preserving')}
-                  className="w-4 h-4"
-                />
-                <Label htmlFor="layout-preserving-mode-advanced" className="text-sm font-semibold text-purple-600">
-                  🏢 Layout-Preserving (Best) - Maintains original email layout exactly
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="balanced-client-mode-advanced"
-                  name="screenshot-mode-advanced"
-                  checked={screenshotMode === 'balanced-client'}
-                  onChange={() => setScreenshotMode('balanced-client')}
-                  className="w-4 h-4"
-                />
-                <Label htmlFor="balanced-client-mode-advanced" className="text-sm text-blue-600">
-                  ⚖️ Balanced Client - Preserves structure, avoids errors
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="stable-client-mode-advanced"
-                  name="screenshot-mode-advanced"
-                  checked={screenshotMode === 'stable-client'}
-                  onChange={() => setScreenshotMode('stable-client')}
-                  className="w-4 h-4"
-                />
-                <Label htmlFor="stable-client-mode-advanced" className="text-sm text-green-600">
-                  ✨ Ultra-Stable Client - Zero errors, minimal structure
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="enhanced-client-mode-advanced"
-                  name="screenshot-mode-advanced"
-                  checked={screenshotMode === 'enhanced-client'}
-                  onChange={() => setScreenshotMode('enhanced-client')}
-                  className="w-4 h-4"
-                />
-                <Label htmlFor="enhanced-client-mode-advanced" className="text-sm">
-                  🎯 Enhanced Client - Advanced image handling (may have conflicts)
-                </Label>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {screenshotMode === 'layout-preserving' && '🏢 BEST: Preserves original email layout, centering, spacing, and styling exactly like the original'}
-              {screenshotMode === 'balanced-client' && '⚖️ Keeps email structure (tables, headings, formatting) while removing dangerous elements'}
-              {screenshotMode === 'stable-client' && '✨ Ultra-aggressive cleaning removes ALL scripts, CSS, and complex elements for 100% reliability'}
-              {screenshotMode === 'enhanced-client' && '🎯 Advanced image loading with CORS proxies (may have conflicts)'}
-            </p>
+          <div className="p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm">Screenshots will be generated on the server using Puppeteer and downloaded automatically.</p>
           </div>
 
           {isProcessing && (

@@ -1,7 +1,8 @@
 import {onRequest} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import {google} from "googleapis";
-import puppeteer from "puppeteer";
+import chromium from '@sparticuz/chromium';
+import puppeteer from 'puppeteer-core';
 import cors from "cors";
 
 // Initialize Firebase Admin
@@ -159,24 +160,12 @@ export const generateEmailScreenshot = onRequest({
         return;
       }
 
-      // Launch Puppeteer with additional args for Cloud Functions
+      // Launch Puppeteer using the bundled Chromium binary
       browser = await puppeteer.launch({
+        executablePath: await chromium.executablePath(),
+        args: chromium.args,
         headless: true,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-gpu",
-          "--disable-web-security",
-          "--disable-features=VizDisplayCompositor",
-          "--no-first-run",
-          "--no-zygote",
-          "--single-process",
-          "--disable-background-timer-throttling",
-          "--disable-backgrounding-occluded-windows",
-          "--disable-renderer-backgrounding"
-        ],
-        executablePath: process.env.NODE_ENV === 'production' ? '/usr/bin/google-chrome-stable' : undefined,
+        defaultViewport: { width: 1200, height: 800, deviceScaleFactor: 1 },
       });
 
       const page = await browser.newPage();
@@ -247,22 +236,10 @@ export const batchGenerateScreenshots = onRequest({
 
       // Launch Puppeteer once for all screenshots with Cloud Functions optimizations
       browser = await puppeteer.launch({
+        executablePath: await chromium.executablePath(),
+        args: chromium.args,
         headless: true,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-gpu",
-          "--disable-web-security",
-          "--disable-features=VizDisplayCompositor",
-          "--no-first-run",
-          "--no-zygote",
-          "--single-process",
-          "--disable-background-timer-throttling",
-          "--disable-backgrounding-occluded-windows",
-          "--disable-renderer-backgrounding"
-        ],
-        executablePath: process.env.NODE_ENV === 'production' ? '/usr/bin/google-chrome-stable' : undefined,
+        defaultViewport: { width: 1200, height: 800, deviceScaleFactor: 1 },
       });
 
       const screenshots = [];
