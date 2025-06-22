@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Calling server screenshot function for:', messageId);
 
-    const response = await fetch(`${FIREBASE_FUNCTIONS_URL}/generateReliableServerScreenshot`, {
+    const response = await fetch(`${FIREBASE_FUNCTIONS_URL}/generateServerScreenshot`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

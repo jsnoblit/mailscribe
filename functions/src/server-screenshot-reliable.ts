@@ -77,17 +77,19 @@ export const generateReliableServerScreenshot = onRequest(
         htmlContent = htmlContent.replace(/(<div[^>]*class="[^"]*wrapper[^"]*"[^>]*style="[^"]*)background-color:\s*#EFF3F7([^"]*)/gi, '$1background-color: transparent$2');
 
         // ------------------------------------------------------------------
+        // Inject San-Francisco fallback web-font so downstream renderers (iframe
+        // + html2canvas, client-side Puppeteer) display text consistently.
+        // ------------------------------------------------------------------
+
+        const fontInjection = `<!-- font preload -->\n<link rel=\"preload\" as=\"font\" type=\"font/ttf\" crossorigin href=\"https://fonts.gstatic.com/s/inter/v12/UcCn_537.ttf\">\n<style>@font-face{font-family:'SanFranciscoFallback';src:url('https://fonts.gstatic.com/s/inter/v12/UcCn_537.ttf') format('truetype');font-display:block;}body,p,h1,h2,h3,h4,span,a,li{font-family:'SanFranciscoFallback',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;}</style>`;
+
+        // ------------------------------------------------------------------
         // Return RAW Gmail HTML.  If the snippet we extracted is already a full
         // document (<!DOCTYPE …> or <html …>), send it unchanged; otherwise
         // wrap it in the thinnest possible shell so the browser can load it.
         // ------------------------------------------------------------------
 
-        const trimmed = htmlContent.trim();
-        const isFullDoc = trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html');
-
-        const finalHtml = isFullDoc
-          ? trimmed
-          : `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>${htmlContent}</body></html>`;
+        const finalHtml = `<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">${fontInjection}</head><body>${htmlContent}</body></html>`;
 
         // Generate filename
         const timestamp = new Date().toISOString().split("T")[0];
@@ -183,16 +185,19 @@ export const generateClientSideScreenshotData = onRequest(
               htmlContent = htmlContent.replace(/(<div[^>]*class="[^"]*wrapper[^"]*"[^>]*style="[^"]*)background-color:\s*#EFF3F7([^"]*)/gi, '$1background-color: transparent$2');
 
               // ------------------------------------------------------------------
+              // Inject San-Francisco fallback web-font so downstream renderers (iframe
+              // + html2canvas, client-side Puppeteer) display text consistently.
+              // ------------------------------------------------------------------
+
+              const fontInjection = `<!-- font preload -->\n<link rel=\"preload\" as=\"font\" type=\"font/ttf\" crossorigin href=\"https://fonts.gstatic.com/s/inter/v12/UcCn_537.ttf\">\n<style>@font-face{font-family:'SanFranciscoFallback';src:url('https://fonts.gstatic.com/s/inter/v12/UcCn_537.ttf') format('truetype');font-display:block;}body,p,h1,h2,h3,h4,span,a,li{font-family:'SanFranciscoFallback',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;}</style>`;
+
+              // ------------------------------------------------------------------
               // Return RAW Gmail HTML.  If the snippet we extracted is already a full
               // document (<!DOCTYPE …> or <html …>), send it unchanged; otherwise
               // wrap it in the thinnest possible shell so the browser can load it.
               // ------------------------------------------------------------------
 
-              const trimmedBatch = htmlContent.trim();
-              const isFullBatch = trimmedBatch.startsWith('<!DOCTYPE') || trimmedBatch.startsWith('<html');
-              const finalHtml = isFullBatch
-                ? trimmedBatch
-                : `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>${htmlContent}</body></html>`;
+              const finalHtml = `<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">${fontInjection}</head><body>${htmlContent}</body></html>`;
 
               // Generate filename
               const timestamp = new Date().toISOString().split("T")[0];

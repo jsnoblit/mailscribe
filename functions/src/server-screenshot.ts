@@ -1,7 +1,8 @@
 import {onRequest} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import {google} from "googleapis";
-import puppeteer from "puppeteer";
+import chromium from '@sparticuz/chromium';
+import puppeteer from 'puppeteer-core';
 import cors from "cors";
 import * as path from "path";
 import * as fs from "fs";
@@ -79,88 +80,12 @@ export const generateServerScreenshot = onRequest(
         }
 
         // Launch Puppeteer with Firebase Functions optimized settings
-        const puppeteerOptions: any = {
-          headless: true,
-          args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-gpu",
-            "--disable-web-security",
-            "--disable-features=VizDisplayCompositor",
-            "--no-first-run",
-            "--no-zygote",
-            "--single-process",
-            "--disable-background-timer-throttling",
-            "--disable-backgrounding-occluded-windows",
-            "--disable-renderer-backgrounding",
-            "--disable-ipc-flooding-protection",
-            "--memory-pressure-off",
-            "--max_old_space_size=4096",
-          ],
-        };
-
-        // Try to find Chrome executable in Firebase Functions environment
-        const possibleChromePaths = [
-          // Firebase Functions Gen2 paths
-          "/layers/google.nodejs.functions-framework/functions-framework/node_modules/puppeteer/.local-chromium/linux-*/chrome-linux/chrome",
-          "/workspace/node_modules/puppeteer/.local-chromium/linux-*/chrome-linux/chrome",
-          "/usr/bin/google-chrome-stable",
-          "/usr/bin/google-chrome",
-          "/usr/bin/chromium-browser",
-          "/usr/bin/chromium",
-          // Local development paths (macOS)
-          "/Users/jnoblit/.cache/puppeteer/chrome/mac_arm-137.0.7151.55/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
-          process.env.PUPPETEER_EXECUTABLE_PATH,
-          // Generic local puppeteer cache paths
-          process.env.HOME + "/.cache/puppeteer/chrome/mac_arm-*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
-          process.env.HOME + "/.cache/puppeteer/chrome/mac-*/chrome-mac/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
-        ].filter(Boolean);
-
-        let executablePath: string | undefined;
-        for (const chromePath of possibleChromePaths) {
-          if (chromePath && chromePath.includes('*')) {
-            // Handle glob patterns for both Linux and macOS
-            const baseDir = chromePath.split('*')[0];
-            const suffix = chromePath.split('*')[1] || '';
-            try {
-              if (fs.existsSync(baseDir)) {
-                const dirs = fs.readdirSync(baseDir);
-                for (const dir of dirs) {
-                  let fullPath;
-                  if (suffix.includes('chrome-linux/chrome')) {
-                    // Linux pattern
-                    fullPath = path.join(baseDir, dir, 'chrome-linux/chrome');
-                  } else if (suffix.includes('Google Chrome for Testing.app')) {
-                    // macOS pattern  
-                    fullPath = path.join(baseDir, dir, suffix);
-                  } else {
-                    fullPath = path.join(baseDir, dir, suffix);
-                  }
-                  
-                  if (fs.existsSync(fullPath)) {
-                    executablePath = fullPath;
-                    break;
-                  }
-                }
-              }
-            } catch (e) {
-              // Continue to next path
-            }
-          } else if (chromePath && fs.existsSync(chromePath)) {
-            executablePath = chromePath;
-            break;
-          }
-        }
-
-        if (executablePath) {
-          puppeteerOptions.executablePath = executablePath;
-          console.log(`Using Chrome at: ${executablePath}`);
-        } else {
-          console.log('No Chrome executable found, letting Puppeteer handle it');
-        }
-
-        browser = await puppeteer.launch(puppeteerOptions);
+        const browser = await puppeteer.launch({
+          executablePath: await chromium.executablePath(), // points to the bundled binary in prod, null on local
+          args: chromium.args,
+          headless: chromium.headless,
+          defaultViewport: { width: 600, height: 800, deviceScaleFactor: 1 },
+        });
 
         const page = await browser.newPage();
 
@@ -255,4 +180,3 @@ export const generateServerScreenshot = onRequest(
     });
   }
 );
-console.log('FONT BLOCK INJECTED') ;
