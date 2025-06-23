@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { TestTube, Search, Mail, CheckCircle, XCircle, Settings, Camera, Download, FileArchive, FileImage, FileText } from 'lucide-react';
+import { TestTube, Search, Mail, CheckCircle, XCircle, Settings, Camera } from 'lucide-react';
 import JSZip from 'jszip';
 
 export default function MailScribePage() {
@@ -517,58 +517,12 @@ export default function MailScribePage() {
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <Settings className="h-5 w-5" />
-                          Screenshot Options
+                          Create Screenshots
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-6">
-                        {/* Screenshot Method (fixed) */}
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium">Screenshot Method:</Label>
-                          <p className="text-sm bg-blue-50 p-3 rounded">
-                            Server Rendering (Puppeteer)
-                          </p>
-                        </div>
-
-                        {/* Download Format Selection */}
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium">Download Format:</Label>
-                          <div className="flex flex-col sm:flex-row gap-4">
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="radio"
-                                id="individual-png"
-                                name="download-format"
-                                checked={downloadFormat === 'individual-png'}
-                                onChange={() => setDownloadFormat('individual-png')}
-                                className="w-4 h-4"
-                              />
-                              <Label htmlFor="individual-png" className="text-sm cursor-pointer flex items-center gap-2">
-                                <FileImage className="h-4 w-4" />
-                                Individual PNG Files
-                              </Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="radio"
-                                id="zip-format"
-                                name="download-format"
-                                checked={downloadFormat === 'zip'}
-                                onChange={() => setDownloadFormat('zip')}
-                                className="w-4 h-4"
-                              />
-                              <Label htmlFor="zip-format" className="text-sm cursor-pointer flex items-center gap-2">
-                                <FileArchive className="h-4 w-4" />
-                                ZIP Archive
-                              </Label>
-                            </div>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {downloadFormat === 'individual-png' ? 'Downloads each screenshot as a separate PNG file' : 'Downloads all screenshots in a single ZIP file'}
-                          </p>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t">
+                        {/* Action Button */}
+                        <div className="flex flex-col sm:flex-row gap-4">
                           <Button
                             onClick={handleScreenshotSelected}
                             disabled={selectedEmails.size === 0 || isProcessingScreenshots}
@@ -576,15 +530,6 @@ export default function MailScribePage() {
                           >
                             <Camera className="mr-2 h-4 w-4" />
                             Generate Screenshots ({selectedEmails.size})
-                          </Button>
-                          <Button
-                            onClick={handleDownloadScreenshots}
-                            disabled={!screenshotsReady || isProcessingScreenshots}
-                            variant="secondary"
-                            className="flex-1"
-                          >
-                            <Download className="mr-2 h-4 w-4" />
-                            Download {downloadFormat === 'zip' ? 'ZIP' : 'PNGs'}
                           </Button>
                         </div>
 
@@ -602,35 +547,12 @@ export default function MailScribePage() {
                         {screenshotsReady && !isProcessingScreenshots && (
                           <div className="bg-green-50 border border-green-200 rounded p-3">
                             <p className="text-sm text-green-800">
-                              ✅ {generatedScreenshots.length} screenshots ready for download as {downloadFormat === 'zip' ? 'ZIP archive' : 'individual PNG files'}!
+                              ✅ {generatedScreenshots.length} screenshots ready for download as individual PNG files!
                             </p>
                           </div>
                         )}
 
-                        {screenshotsReady && !isProcessingScreenshots && downloadFormat === 'individual-png' && screenshotMode === 'enhanced-server' && (
-                          <div className="mt-6 space-y-2">
-                            <h4 className="font-medium text-sm mb-2">Download Files:</h4>
-                            {generatedScreenshots.map((screenshot) => (
-                              <div key={screenshot.emailId} className="flex items-center gap-2">
-                                <Button
-                                  variant="secondary"
-                                  onClick={() => handleDownloadPng(screenshot)}
-                                >
-                                  <Download className="mr-2 h-4 w-4" />
-                                  Download PNG
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => handleDownloadHtml(screenshot)}
-                                >
-                                  <FileText className="mr-2 h-4 w-4" />
-                                  Download HTML
-                                </Button>
-                                <span className="text-xs text-muted-foreground">{screenshot.fileName.replace(/\.png$/, '.html')}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        {/* File list removed as screenshots auto-download */}
                       </CardContent>
                     </Card>
                   </div>
