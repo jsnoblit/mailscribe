@@ -1,20 +1,30 @@
 'use client';
 
 import type React from 'react';
-import type { Email } from '@/types';
+import type { EmailMessage } from '@/types/email';
 import EmailListItem from './EmailListItem';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import { FileText } from 'lucide-react';
 
 interface EmailListProps {
-  emails: Email[];
+  emails: EmailMessage[];
   selectedEmails: Set<string>; // Set of email IDs
   onEmailSelectionChange: (emailId: string, isSelected: boolean) => void;
   onSelectAllChange: (isSelected: boolean) => void;
   isLoading: boolean;
+  // Add new props for pagination
+  paginationInfo?: {
+    totalResults: number;
+    totalFound: number;
+    currentOffset: number;
+    hasMore: boolean;
+  };
+  onLoadMore?: () => void;
+  isLoadingMore?: boolean;
 }
 
 const EmailList: React.FC<EmailListProps> = ({
@@ -23,6 +33,9 @@ const EmailList: React.FC<EmailListProps> = ({
   onEmailSelectionChange,
   onSelectAllChange,
   isLoading,
+  paginationInfo,
+  onLoadMore,
+  isLoadingMore = false,
 }) => {
   const allSelected = emails.length > 0 && emails.every(email => selectedEmails.has(email.id));
   const someSelected = emails.some(email => selectedEmails.has(email.id)) && !allSelected;
@@ -73,7 +86,10 @@ const EmailList: React.FC<EmailListProps> = ({
         <div className="flex justify-between items-center">
           <CardTitle className="font-headline text-xl flex items-center">
             <FileText className="mr-2 h-5 w-5 text-primary" />
-            Search Results ({emails.length})
+            Search Results ({emails.length}
+            {paginationInfo && paginationInfo.totalFound > emails.length && 
+              ` of ${paginationInfo.totalFound} found`
+            })
           </CardTitle>
           {emails.length > 0 && (
             <div className="flex items-center space-x-2">
@@ -102,6 +118,29 @@ const EmailList: React.FC<EmailListProps> = ({
             />
           ))}
         </ScrollArea>
+        
+        {/* Load More Button */}
+        {paginationInfo && paginationInfo.hasMore && (
+          <div className="mt-4 text-center">
+            <Button
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+              variant="outline"
+              className="w-full"
+            >
+              {isLoadingMore ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                  Loading more emails...
+                </>
+              ) : (
+                <>
+                  Load More ({paginationInfo.totalFound - emails.length} remaining)
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

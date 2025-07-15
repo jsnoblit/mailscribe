@@ -5,7 +5,7 @@ const FIREBASE_FUNCTIONS_URL = 'https://us-central1-mailscribe-ae722.cloudfuncti
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { accessToken, query, maxResults = 10 } = body;
+    const { accessToken, query, maxResults = 10, offset = 0, limit = 20 } = body;
 
     if (!accessToken) {
       return NextResponse.json(
@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
       tokenLength: accessToken.length,
       query,
       maxResults,
+      offset,
+      limit,
     });
 
     const response = await fetch(`${FIREBASE_FUNCTIONS_URL}/searchGmailMessages`, {
@@ -30,6 +32,8 @@ export async function POST(request: NextRequest) {
         accessToken,
         query: query || 'in:inbox',
         maxResults,
+        offset,
+        limit,
       }),
     });
 

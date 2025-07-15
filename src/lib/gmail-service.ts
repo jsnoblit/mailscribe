@@ -1,42 +1,9 @@
 import { EmailMessage, SearchFilters, GmailSearchResponse, EmailContentResponse } from '@/types/email';
 import type { AuthUser } from '@/hooks/useAuth';
+import { buildGmailSearchQuery } from './search-utils';
 
 export class GmailService {
-  /**
-   * Build Gmail search query from filters
-   */
-  private static buildSearchQuery(filters: SearchFilters): string {
-    const queryParts: string[] = [];
 
-    // Brand filter (sender)
-    if (filters.brand && filters.brand !== 'All') {
-      // If it's an email address, search by exact from:
-      if (filters.brand.includes('@')) {
-        queryParts.push(`from:${filters.brand}`);
-      } else {
-        // If it's a domain or brand name, search more broadly
-        queryParts.push(`from:*${filters.brand}*`);
-      }
-    }
-
-    // Subject filter
-    if (filters.subject && filters.subject !== 'All') {
-      queryParts.push(`subject:"${filters.subject}"`);
-    }
-
-    // Date range filters
-    if (filters.startDate) {
-      const startDateStr = filters.startDate.toISOString().split('T')[0].replace(/-/g, '/');
-      queryParts.push(`after:${startDateStr}`);
-    }
-
-    if (filters.endDate) {
-      const endDateStr = filters.endDate.toISOString().split('T')[0].replace(/-/g, '/');
-      queryParts.push(`before:${endDateStr}`);
-    }
-
-    return queryParts.join(' ');
-  }
 
   /**
    * Search Gmail messages using authenticated user
@@ -48,7 +15,7 @@ export class GmailService {
     if (!user.gmailAccessToken) {
       throw new Error('User is not authenticated or Gmail access token is missing');
     }
-    const query = this.buildSearchQuery(filters);
+    const query = buildGmailSearchQuery(filters);
     
     console.log('Gmail Service: Making search request with:', {
       hasAccessToken: !!user.gmailAccessToken,

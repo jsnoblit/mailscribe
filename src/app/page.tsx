@@ -12,6 +12,7 @@ import type { SearchCriteria, EmailMessage, GeneratedScreenshot } from '@/types/
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { GmailService } from '@/lib/gmail-service';
+import { buildGmailSearchQuery } from '@/lib/search-utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -28,6 +29,22 @@ export default function MailScribePage() {
   const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   
+  // Add pagination state
+  const [paginationInfo, setPaginationInfo] = useState<{
+    totalResults: number;
+    totalFound: number;
+    currentOffset: number;
+    hasMore: boolean;
+    searchCriteria: SearchCriteria | null;
+  }>({
+    totalResults: 0,
+    totalFound: 0,
+    currentOffset: 0,
+    hasMore: false,
+    searchCriteria: null,
+  });
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
   // Only one screenshot mode now – server-side rendering via Puppeteer
   const screenshotMode: 'enhanced-server' = 'enhanced-server';
   const [downloadFormat, setDownloadFormat] = useState<'individual-png' | 'zip'>('individual-png');
@@ -43,7 +60,7 @@ export default function MailScribePage() {
 
   const { toast } = useToast();
 
-  const handleSearch = async (criteria: SearchCriteria) => {
+  const handleSearch = async (criteria: SearchCriteria, isLoadMore = false) => {
     if (!user || !user.gmailAccessToken) {
       toast({
         title: "Authentication Required",
@@ -53,62 +70,38 @@ export default function MailScribePage() {
       return;
     }
 
-    setIsSearchLoading(true);
-    setEmails([]); // Clear previous results
-    setSelectedEmails(new Set()); // Clear selections
-    setGeneratedScreenshots([]);
-    setScreenshotsReady(false);
+    if (isLoadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setIsSearchLoading(true);
+      setEmails([]); // Clear previous results only for new search
+      setSelectedEmails(new Set());
+      setGeneratedScreenshots([]);
+      setScreenshotsReady(false);
+      setPaginationInfo(prev => ({ ...prev, currentOffset: 0, searchCriteria: criteria }));
+    }
 
     try {
       console.log("Searching with criteria:", criteria);
       
-      // Build search query like integrated page
-      const buildSearchQuery = (criteria: SearchCriteria): string => {
-        const queryParts: string[] = [];
-
-        // Brand filter (sender)
-        if (criteria.brand && criteria.brand !== 'All' && criteria.brand.trim()) {
-          // If it's an email address, search by exact from:
-          if (criteria.brand.includes('@')) {
-            queryParts.push(`from:${criteria.brand}`);
-          } else {
-            // If it's a domain or brand name, search more broadly
-            queryParts.push(`from:*${criteria.brand}*`);
-          }
-        }
-
-        // Subject filter
-        if (criteria.subject && criteria.subject !== 'All' && criteria.subject.trim()) {
-          queryParts.push(`subject:"${criteria.subject}"`);
-        }
-
-        // Date range filters
-        if (criteria.startDate) {
-          const startDateStr = criteria.startDate.toISOString().split('T')[0].replace(/-/g, '/');
-          queryParts.push(`after:${startDateStr}`);
-        }
-
-        if (criteria.endDate) {
-          const endDateStr = criteria.endDate.toISOString().split('T')[0].replace(/-/g, '/');
-          queryParts.push(`before:${endDateStr}`);
-        }
-
-        return queryParts.length > 0 ? queryParts.join(' ') : 'in:inbox';
-      };
-
-      const query = buildSearchQuery(criteria);
+      // Use enhanced search query builder with time support
+      const query = buildGmailSearchQuery(criteria);
       console.log('Built search query:', query);
       
-      // Use direct API call like integrated page
+      const currentOffset = isLoadMore ? paginationInfo.currentOffset : 0;
+      
+      // Use direct API call with pagination
       const response = await fetch('/api/gmail/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          accessToken: user.gmailAccessToken!, // Use Gmail OAuth token
+          accessToken: user.gmailAccessToken!,
           query,
           maxResults: 50,
+          offset: currentOffset,
+          limit: 20,
         }),
       });
 
@@ -137,25 +130,40 @@ export default function MailScribePage() {
       
       // Now, fetch the full content for these emails
       toast({ 
-        title: "Fetching Email Content", 
+        title: isLoadMore ? "Loading More Emails" : "Fetching Email Content", 
         description: `Getting the full content for ${emailsWithBrand.length} emails...`,
         variant: "default"
       });
       
       const emailsWithContent = await GmailService.getBatchEmailContent(user, emailsWithBrand);
 
-      setEmails(emailsWithContent);
+      // Update emails - append for load more, replace for new search
+      if (isLoadMore) {
+        setEmails(prevEmails => [...prevEmails, ...emailsWithContent]);
+      } else {
+        setEmails(emailsWithContent);
+      }
+
+      // Update pagination info
+      setPaginationInfo({
+        totalResults: data.totalResults,
+        totalFound: data.totalFound,
+        currentOffset: data.nextOffset || currentOffset,
+        hasMore: data.hasMore,
+        searchCriteria: criteria,
+      });
       
-      if (emailsWithContent.length === 0) {
+      if (emailsWithContent.length === 0 && !isLoadMore) {
         toast({ 
           title: "No Results", 
           description: "No emails found matching your criteria.", 
           variant: "default"
         });
       } else {
+        const totalLoaded = isLoadMore ? emails.length + emailsWithContent.length : emailsWithContent.length;
         toast({ 
-          title: "Search Complete", 
-          description: `Found and loaded ${emailsWithContent.length} email(s).`, 
+          title: isLoadMore ? "More Emails Loaded" : "Search Complete", 
+          description: `Loaded ${totalLoaded} of ${data.totalFound} found emails.`, 
           variant: "default"
         });
       }
@@ -167,7 +175,17 @@ export default function MailScribePage() {
         variant: "destructive",
       });
     } finally {
-      setIsSearchLoading(false);
+      if (isLoadMore) {
+        setIsLoadingMore(false);
+      } else {
+        setIsSearchLoading(false);
+      }
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (paginationInfo.searchCriteria && paginationInfo.hasMore) {
+      handleSearch(paginationInfo.searchCriteria, true);
     }
   };
 
@@ -507,6 +525,9 @@ export default function MailScribePage() {
                     onEmailSelectionChange={handleEmailSelectionChange}
                     onSelectAllChange={handleSelectAllChange}
                     isLoading={isSearchLoading}
+                    paginationInfo={paginationInfo}
+                    onLoadMore={handleLoadMore}
+                    isLoadingMore={isLoadingMore}
                   />
                 )}
                 

@@ -13,6 +13,8 @@ export interface SearchCriteria {
   subject: string; // Keywords or "All"
   startDate?: Date;
   endDate?: Date;
+  startTime?: string; // HH:MM format (24-hour)
+  endTime?: string; // HH:MM format (24-hour)
   maxResults?: number;
 }
 
@@ -21,6 +23,8 @@ export interface SearchFilters {
   subject: string;
   startDate?: Date;
   endDate?: Date;
+  startTime?: string;
+  endTime?: string;
   maxResults?: number;
 }
 
@@ -38,6 +42,11 @@ export interface BatchScreenshotResult {
 export interface GmailSearchResponse {
   messages: EmailMessage[];
   totalResults: number;
+  totalFound: number;
+  processedCount: number;
+  offset: number;
+  hasMore: boolean;
+  nextOffset: number | null;
 }
 
 export interface EmailContentResponse {

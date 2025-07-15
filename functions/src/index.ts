@@ -53,7 +53,7 @@ export const searchGmailMessages = onRequest(
   (req, res) => {
     corsHandler(req, res, async () => {
       try {
-        const {accessToken, query, maxResults = 50} = req.body;
+        const {accessToken, query, maxResults = 50, offset = 0, limit = 20} = req.body;
 
         if (!accessToken) {
           res.status(400).json({error: "Access token is required"});
@@ -75,8 +75,13 @@ export const searchGmailMessages = onRequest(
         const messages = response.data.messages || [];
         const emailDetails = [];
 
-        // Get details for each message
-        for (const message of messages.slice(0, 20)) { // Limit to 20 for performance
+        // Calculate slice bounds for pagination
+        const startIndex = offset;
+        const endIndex = Math.min(offset + limit, messages.length);
+        const hasMore = endIndex < messages.length;
+
+        // Get details for the requested slice of messages
+        for (const message of messages.slice(startIndex, endIndex)) {
           try {
             const messageDetails = await gmail.users.messages.get({
               userId: "me",
@@ -104,6 +109,11 @@ export const searchGmailMessages = onRequest(
         res.json({
           messages: emailDetails,
           totalResults: response.data.resultSizeEstimate || 0,
+          totalFound: messages.length,
+          processedCount: emailDetails.length,
+          offset: startIndex,
+          hasMore,
+          nextOffset: hasMore ? endIndex : null,
         });
       } catch (error) {
         console.error("Error searching Gmail:", error);

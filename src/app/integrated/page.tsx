@@ -8,6 +8,7 @@ import EmailList from '@/components/results/EmailList';
 import ScreenshotActions from '@/components/actions/ScreenshotActions';
 import type { EmailMessage, SearchCriteria } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { buildGmailSearchQuery } from '@/lib/search-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,38 +41,7 @@ export default function IntegratedMailScribePage() {
     });
   };
 
-  const buildSearchQuery = (criteria: SearchCriteria): string => {
-    const queryParts: string[] = [];
 
-    // Brand filter (sender)
-    if (criteria.brand && criteria.brand !== 'All' && criteria.brand.trim()) {
-      // If it's an email address, search by exact from:
-      if (criteria.brand.includes('@')) {
-        queryParts.push(`from:${criteria.brand}`);
-      } else {
-        // If it's a domain or brand name, search more broadly
-        queryParts.push(`from:*${criteria.brand}*`);
-      }
-    }
-
-    // Subject filter
-    if (criteria.subject && criteria.subject !== 'All' && criteria.subject.trim()) {
-      queryParts.push(`subject:"${criteria.subject}"`);
-    }
-
-    // Date range filters
-    if (criteria.startDate) {
-      const startDateStr = criteria.startDate.toISOString().split('T')[0].replace(/-/g, '/');
-      queryParts.push(`after:${startDateStr}`);
-    }
-
-    if (criteria.endDate) {
-      const endDateStr = criteria.endDate.toISOString().split('T')[0].replace(/-/g, '/');
-      queryParts.push(`before:${endDateStr}`);
-    }
-
-    return queryParts.length > 0 ? queryParts.join(' ') : 'in:inbox';
-  };
 
   const extractBrandFromSender = (fromAddress: string): string => {
     try {
@@ -113,7 +83,7 @@ export default function IntegratedMailScribePage() {
     try {
       console.log("Searching with criteria:", criteria);
       
-      const query = buildSearchQuery(criteria);
+      const query = buildGmailSearchQuery(criteria);
       console.log('Built search query:', query);
       
       const response = await fetch('/api/gmail/search', {
@@ -160,7 +130,7 @@ export default function IntegratedMailScribePage() {
         title: "Search Complete",
         description: `Found ${data.messages.length} emails (${data.totalResults} total matches)`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Search error:', error);
       toast({
         title: "Search Failed",
